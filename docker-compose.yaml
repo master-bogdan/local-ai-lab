@@ -1,0 +1,107 @@
+name: local-ai-lab
+
+services:
+  ollama:
+    image: ollama/ollama:0.12.11
+    container_name: ollama
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${OLLAMA_PORT}:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    gpus: all
+
+  openwebui-core:
+    image: ghcr.io/open-webui/open-webui:v0.6.41
+    container_name: openwebui-core
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - ollama
+    ports:
+      - "${OPENWEBUI_CORE_PORT}:8080"
+    volumes:
+      - openwebui_core_data:/app/backend/data
+
+  openwebui-appbuilder:
+    image: ghcr.io/open-webui/open-webui:v0.6.41
+    container_name: openwebui-appbuilder
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - ollama
+    ports:
+      - "${OPENWEBUI_APPBUILDER_PORT}:8080"
+    volumes:
+      - openwebui_appbuilder_data:/app/backend/data
+
+  comfyui:
+    image: ashleykza/comfyui:cu124-py312-v0.3.40
+    container_name: comfyui
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${COMFYUI_PORT}:8188"
+    volumes:
+      - comfyui_data:/workspace
+    gpus: all
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    container_name: cadvisor
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "${CADVISOR_PORT}:8080"
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+
+  prometheus:
+    image: prom/prometheus:v3.8.0
+    container_name: prometheus
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - cadvisor
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro,Z
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+
+  grafana:
+    image: grafana/grafana:12.3.0
+    container_name: grafana
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - prometheus
+    ports:
+      - "${GRAFANA_PORT}:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro,Z
+      - grafana_data:/var/lib/grafana
+
+volumes:
+  ollama_data:
+  openwebui_core_data:
+  openwebui_appbuilder_data:
+  comfyui_data:
+  prometheus_data:
+  grafana_data:

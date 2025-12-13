@@ -1,0 +1,90 @@
+# OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.log
+
+# Node / JavaScript
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+dist/
+build/
+.cache/
+.next/
+out/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg
+*.egg-info/
+.eggs/
+.env/
+.venv/
+venv/
+.env.local
+.env.*.local
+
+# Go
+bin/
+*.out
+coverage.out
+
+# Rust
+target/
+
+# Logs
+logs/
+*.log
+log.txt
+
+# Docker
+*.pid
+*.seed
+*.env
+.env.local
+
+# Generated state & runtime config
+.state/
+config/services/
+data/
+
+# Compose / runtime data
+docker-data/
+tmp/
+data/
+
+# VS Code workspace files
+*.code-workspace
+
+# JetBrains
+*.iml
+.gradle/
+out/
+
+# Mac-specific
+.AppleDouble
+.Spotlight-V100
+.Trashes
+
+# SearXNG local config (keep example, ignore real one if you want)
+searxng/settings.yml
+
+# Prometheus / Grafana data (volumes, not repo)
+prometheus_data/
+grafana_data/
+
+# Jupyter / notebooks (if you experiment here)
+.ipynb_checkpoints/
+
+*.installed
