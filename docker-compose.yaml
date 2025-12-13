@@ -38,6 +38,18 @@ services:
       - ./data/searxng:/etc/searxng:Z
       - searxng_cache:/var/cache/searxng:Z
 
+  bolt-diy:
+    image: ghcr.io/stackblitz-labs/bolt.diy:sha-3f6050b
+    container_name: bolt-diy
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - ollama
+    ports:
+      - "${BOLTDIY_PORT}:5173"
+
+
   comfyui:
     image: ashleykza/comfyui:cu124-py312-v0.3.40
     container_name: comfyui
