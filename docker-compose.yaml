@@ -26,18 +26,28 @@ services:
     volumes:
       - openwebui_core_data:/app/backend/data
 
-  openwebui-appbuilder:
-    image: ghcr.io/open-webui/open-webui:v0.6.41
-    container_name: openwebui-appbuilder
+  searxng:
+    image: searxng/searxng:2025.12.5-701739364
+    container_name: searxng
     restart: unless-stopped
     env_file:
       - .env
+    ports:
+      - "${SEARXNG_PORT}:8080"
+    volumes:
+      - ./data/searxng:/etc/searxng:Z
+      - searxng_cache:/var/cache/searxng:Z
+
+  bolt-diy:
+    image: ghcr.io/stackblitz-labs/bolt.diy:stable
+    container_name: bolt-diy
+    restart: unless-stopped
     depends_on:
       - ollama
     ports:
-      - "${OPENWEBUI_APPBUILDER_PORT}:8080"
+      - "5173:5173"
     volumes:
-      - openwebui_appbuilder_data:/app/backend/data
+      - bolt_diy_projects:/app/projects
 
   comfyui:
     image: ashleykza/comfyui:cu124-py312-v0.3.40
@@ -105,3 +115,5 @@ volumes:
   comfyui_data:
   prometheus_data:
   grafana_data:
+  searxng_cache:
+  bolt_diy_projects:

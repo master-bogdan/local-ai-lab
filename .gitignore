@@ -88,3 +88,4 @@ grafana_data/
 .ipynb_checkpoints/
 
 *.installed
+/data/searxng/

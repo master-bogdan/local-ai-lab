@@ -4,8 +4,41 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-echo "[clear] Stopping stack + removing volumes"
-docker compose down -v --remove-orphans || true
+WIPE_MODELS=false
+if [[ "${1:-}" == "--wipe-models" ]]; then
+  WIPE_MODELS=true
+fi
+
+# Which compose volumes are "models" and should be preserved by default
+# (these are compose *volume keys* from docker-compose.yml, not full docker volume names)
+MODEL_VOLUME_KEYS=("ollama_data")
+
+# Determine compose project name (Compose uses folder name by default unless COMPOSE_PROJECT_NAME is set)
+PROJECT_NAME="${COMPOSE_PROJECT_NAME:-$(basename "$PROJECT_ROOT")}"
+
+echo "[clear] Project: ${PROJECT_NAME}"
+echo "[clear] Stopping stack..."
+docker compose down --remove-orphans || true
+
+echo "[clear] Removing volumes..."
+# List volumes created by this compose project (Compose labels them with com.docker.compose.project)
+mapfile -t VOLUMES < <(docker volume ls -q --filter "label=com.docker.compose.project=${PROJECT_NAME}")
+
+# Build a set of full docker volume names that should be preserved
+# Compose names volumes like: <project>_<volumeKey>
+declare -A KEEP
+for key in "${MODEL_VOLUME_KEYS[@]}"; do
+  KEEP["${PROJECT_NAME}_${key}"]=1
+done
+
+for v in "${VOLUMES[@]}"; do
+  if [[ "$WIPE_MODELS" == "false" && -n "${KEEP[$v]+x}" ]]; then
+    echo "  -> keep (models): $v"
+    continue
+  fi
+  echo "  -> rm: $v"
+  docker volume rm -f "$v" >/dev/null 2>&1 || true
+done
 
 echo "[clear] Removing generated root .env + sentinel"
 rm -f .env .installed
@@ -20,6 +53,10 @@ for f in config/*.env; do
 done
 shopt -u nullglob
 
+echo "[clear] Removing runtime data dirs (everything except model volumes)"
+# nukes generated searxng config, comfyui workspace, etc.
+rm -rf data || true
+
 echo "[clear] Removing auto-generated monitoring files only (if we created them)"
 for f in \
   monitoring/prometheus/prometheus.yml \
@@ -31,4 +68,8 @@ do
   fi
 done
 
-echo "[clear] Done."
+if [[ "$WIPE_MODELS" == "true" ]]; then
+  echo "[clear] Done. (Models were wiped too.)"
+else
+  echo "[clear] Done. (Models preserved: ${MODEL_VOLUME_KEYS[*]})"
+fi

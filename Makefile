@@ -28,6 +28,10 @@ start:
 clear:
 	./scripts/clear.sh
 
+clear-with-models:
+	./scripts/clear.sh --wipe-models
+
+
 # Optional helpers (only if you keep models scripts):
 models-install:
 	./scripts/models-install.sh $(MODELS)
