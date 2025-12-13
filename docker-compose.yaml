@@ -39,16 +39,15 @@ services:
       - searxng_cache:/var/cache/searxng:Z
 
   bolt-diy:
-    image: ghcr.io/stackblitz-labs/bolt.diy:sha-3f6050b
+    image: ghcr.io/stackblitz-labs/bolt.diy:stable
     container_name: bolt-diy
     restart: unless-stopped
-    env_file:
-      - .env
     depends_on:
       - ollama
     ports:
-      - "${BOLTDIY_PORT}:5173"
-
+      - "5173:5173"
+    volumes:
+      - bolt_diy_projects:/app/projects
 
   comfyui:
     image: ashleykza/comfyui:cu124-py312-v0.3.40
@@ -117,3 +116,4 @@ volumes:
   prometheus_data:
   grafana_data:
   searxng_cache:
+  bolt_diy_projects:
