@@ -26,18 +26,17 @@ services:
     volumes:
       - openwebui_core_data:/app/backend/data
 
-  openwebui-appbuilder:
-    image: ghcr.io/open-webui/open-webui:v0.6.41
-    container_name: openwebui-appbuilder
+  searxng:
+    image: searxng/searxng:2025.12.5-701739364
+    container_name: searxng
     restart: unless-stopped
     env_file:
       - .env
-    depends_on:
-      - ollama
     ports:
-      - "${OPENWEBUI_APPBUILDER_PORT}:8080"
+      - "${SEARXNG_PORT}:8080"
     volumes:
-      - openwebui_appbuilder_data:/app/backend/data
+      - ./data/searxng:/etc/searxng:Z
+      - searxng_cache:/var/cache/searxng:Z
 
   comfyui:
     image: ashleykza/comfyui:cu124-py312-v0.3.40
@@ -105,3 +104,4 @@ volumes:
   comfyui_data:
   prometheus_data:
   grafana_data:
+  searxng_cache:

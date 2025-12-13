@@ -6,12 +6,14 @@ cd "$PROJECT_ROOT"
 
 DEFAULT_MODELS=(
   "deepseek-r1:14b"
-  "qwen2.5:14b"
-  "qwen2.5-coder:14b"
-  "llama3.1:8b"
-  "qwen3-vl:8b"
   "phi4-reasoning:latest"
-  "qwen3:14b"
+  "qwen3:14b-q4_K_M"
+  "qwen2.5-coder:14b"
+  "llama3.1:8b-instruct-q4_K_M"
+  "qwen3-vl:8b"
+  "bge-m3:latest"
+  "qwen2.5:14b"
+  "devstral:24b"
 )
 
 MODELS=("$@")
