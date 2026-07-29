@@ -1,6 +1,21 @@
-# Local AI Lab
+<div align="center">
 
-Local, zero-API-cost AI workstation by [bogdanlabs.dev](https://bogdanlabs.dev) and [masterbogdan](https://github.com/masterbogdan).
+<h1>Local AI Lab</h1>
+
+<p><strong>Private AI workstation. Local models, coding agents, search, images, and monitoring.</strong></p>
+
+<p>Zero paid API costs. Built by <a href="https://github.com/masterbogdan">Bogdan Shchavinskyi</a> at <a href="https://bogdanlabs.dev">bogdanlabs.dev</a>.</p>
+
+<picture>
+  <source media="(prefers-reduced-motion: reduce)" srcset="assets/tui-models.png">
+  <img src="assets/tui-demo.gif" width="1200" alt="Local AI Lab terminal interface selecting a workload and hardware-recommended local models">
+</picture>
+
+</div>
+
+```bash
+make start
+```
 
 Local AI Lab provides:
 
