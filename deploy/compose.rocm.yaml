@@ -1,0 +1,47 @@
+services:
+  ollama:
+    image: ollama/ollama:0.32.5-rocm@sha256:f5d30b387649cf60baa2678a88240eb5c9a5f43382a1c965b18c798deebee4d1
+    restart: "no"
+    environment:
+      OLLAMA_HOST: 0.0.0.0:11434
+      OLLAMA_CONTEXT_LENGTH: ${OLLAMA_CONTEXT_LENGTH:-32768}
+      OLLAMA_KEEP_ALIVE: 10m
+      OLLAMA_MAX_LOADED_MODELS: "1"
+    ports:
+      - "127.0.0.1:11434:11434"
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
+    volumes:
+      - ${LOCAL_AI_DATA_DIR:?LOCAL_AI_DATA_DIR is required}/models/ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 10s
+
+  comfyui:
+    image: local-ai-lab/comfyui-rocm:0.29.0
+    build:
+      context: ./comfy
+      dockerfile: Dockerfile.rocm
+    restart: "no"
+    ports:
+      - "127.0.0.1:8188:8188"
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
+    ipc: host
+    security_opt:
+      - seccomp=unconfined
+    volumes:
+      - ${LOCAL_AI_DATA_DIR:?LOCAL_AI_DATA_DIR is required}/models/comfyui:/workspace/ComfyUI/models
+      - ${LOCAL_AI_DATA_DIR:?LOCAL_AI_DATA_DIR is required}/services/comfyui/output:/workspace/ComfyUI/output
+      - ${LOCAL_AI_DATA_DIR:?LOCAL_AI_DATA_DIR is required}/services/comfyui/input:/workspace/ComfyUI/input

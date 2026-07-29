@@ -1,0 +1,30 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "labels": ["dependencies"],
+  "schedule": ["before 6am on monday"],
+  "timezone": "America/New_York",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^deploy\\/comfy\\/Dockerfile\\.(?:cuda|rocm)$/"],
+      "matchStrings": ["ARG COMFYUI_VERSION=(?<currentValue>v\\d+\\.\\d+\\.\\d+)\\nARG COMFYUI_COMMIT=(?<currentDigest>[a-f0-9]{40})"],
+      "depNameTemplate": "Comfy-Org/ComfyUI",
+      "datasourceTemplate": "github-tags"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchManagers": ["gomod"],
+      "rangeStrategy": "pin"
+    },
+    {
+      "matchManagers": ["dockerfile", "docker-compose"],
+      "rangeStrategy": "pin"
+    },
+    {
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    }
+  ]
+}

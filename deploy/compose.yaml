@@ -1,0 +1,84 @@
+name: local-ai-lab
+
+services:
+  searxng:
+    image: searxng/searxng:2026.7.28-c01178d03@sha256:5d6d903ab82afa56ee32792d477f36bc63d3e5ca04fcb6947e28a5cfd987fad3
+    restart: "no"
+    environment:
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?SEARXNG_SECRET is required}
+      SEARXNG_BASE_URL: http://127.0.0.1:8088/
+    ports:
+      - "127.0.0.1:8088:8080"
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - ${LOCAL_AI_DATA_DIR:?LOCAL_AI_DATA_DIR is required}/cache/searxng:/var/cache/searxng
+
+  qdrant:
+    image: qdrant/qdrant:v1.18.3@sha256:0bd98fa7977f1e75694779359ca4e212822e5a71334e28421182f72f209d5286
+    restart: "no"
+    ports:
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - ${LOCAL_AI_DATA_DIR:?LOCAL_AI_DATA_DIR is required}/qdrant:/qdrant/storage
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:v0.11.0@sha256:72c0ba641ba75e7aa52655cb242570906ececd09b1140fb736483038a22b3228
+    restart: "no"
+    environment:
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      WEBUI_AUTH: "true"
+      WEBUI_NAME: Local AI Lab
+      ENABLE_RAG_WEB_SEARCH: "true"
+      RAG_WEB_SEARCH_ENGINE: searxng
+      RAG_WEB_SEARCH_RESULT_COUNT: "5"
+      SEARXNG_QUERY_URL: http://searxng:8080/search?q=<query>
+      VECTOR_DB: qdrant
+      QDRANT_URI: http://qdrant:6333
+      RAG_EMBEDDING_ENGINE: ollama
+      RAG_EMBEDDING_MODEL: ${EMBEDDING_MODEL:-qwen3-embedding:0.6b}
+    ports:
+      - "127.0.0.1:3000:8080"
+    volumes:
+      - ${LOCAL_AI_DATA_DIR:?LOCAL_AI_DATA_DIR is required}/services/open-webui:/app/backend/data
+
+  cadvisor:
+    image: ghcr.io/google/cadvisor:v0.60.5@sha256:763aecf1c32c2be8a1a75f9abfc2fc461005c9dbbaa39cb356b354aac1296dbe
+    restart: "no"
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+
+  prometheus:
+    image: prom/prometheus:v3.13.1@sha256:3c42b892cf723fa54d2f262c37a0e1f80aa8c8ddb1da7b9b0df9455a35a7f893
+    restart: "no"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/rules:/etc/prometheus/rules:ro
+      - ${LOCAL_AI_DATA_DIR:?LOCAL_AI_DATA_DIR is required}/services/prometheus:/prometheus
+
+  grafana:
+    image: grafana/grafana:13.1.1@sha256:7cb8c64c4d57a57e734073f3cc94620adb24a0acb929bd80ba9f14017e3a975b
+    restart: "no"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:?GRAFANA_PASSWORD is required}
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/local-ai-lab.json
+    ports:
+      - "127.0.0.1:3002:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ${LOCAL_AI_DATA_DIR:?LOCAL_AI_DATA_DIR is required}/services/grafana:/var/lib/grafana

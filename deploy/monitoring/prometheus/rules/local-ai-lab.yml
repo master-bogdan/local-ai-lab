@@ -1,0 +1,86 @@
+groups:
+  - name: local-ai-lab-recording
+    interval: 15s
+    rules:
+      - record: local_ai_lab:container_cpu_cores:rate1m
+        expr: >-
+          sum by (service) (
+            label_replace(
+              rate(container_cpu_usage_seconds_total{container_label_com_docker_compose_project="local-ai-lab",container_label_com_docker_compose_service!=""}[1m]),
+              "service", "$1", "container_label_com_docker_compose_service", "(.+)"
+            )
+          )
+      - record: local_ai_lab:container_memory_working_set_bytes
+        expr: >-
+          sum by (service) (
+            label_replace(
+              container_memory_working_set_bytes{container_label_com_docker_compose_project="local-ai-lab",container_label_com_docker_compose_service!=""},
+              "service", "$1", "container_label_com_docker_compose_service", "(.+)"
+            )
+          )
+      - record: local_ai_lab:container_network_receive_bytes:rate1m
+        expr: >-
+          sum by (service) (
+            label_replace(
+              rate(container_network_receive_bytes_total{container_label_com_docker_compose_project="local-ai-lab",container_label_com_docker_compose_service!=""}[1m]),
+              "service", "$1", "container_label_com_docker_compose_service", "(.+)"
+            )
+          )
+      - record: local_ai_lab:container_network_transmit_bytes:rate1m
+        expr: >-
+          sum by (service) (
+            label_replace(
+              rate(container_network_transmit_bytes_total{container_label_com_docker_compose_project="local-ai-lab",container_label_com_docker_compose_service!=""}[1m]),
+              "service", "$1", "container_label_com_docker_compose_service", "(.+)"
+            )
+          )
+      - record: local_ai_lab:container_fs_reads_bytes:rate1m
+        expr: >-
+          sum by (service) (
+            label_replace(
+              rate(container_fs_reads_bytes_total{container_label_com_docker_compose_project="local-ai-lab",container_label_com_docker_compose_service!=""}[1m]),
+              "service", "$1", "container_label_com_docker_compose_service", "(.+)"
+            )
+          )
+      - record: local_ai_lab:container_fs_writes_bytes:rate1m
+        expr: >-
+          sum by (service) (
+            label_replace(
+              rate(container_fs_writes_bytes_total{container_label_com_docker_compose_project="local-ai-lab",container_label_com_docker_compose_service!=""}[1m]),
+              "service", "$1", "container_label_com_docker_compose_service", "(.+)"
+            )
+          )
+      - record: local_ai_lab:container_last_seen
+        expr: >-
+          max by (service) (
+            label_replace(
+              container_last_seen{container_label_com_docker_compose_project="local-ai-lab",container_label_com_docker_compose_service!=""},
+              "service", "$1", "container_label_com_docker_compose_service", "(.+)"
+            )
+          )
+      - record: local_ai_lab:container_oom_events:increase5m
+        expr: >-
+          sum by (service) (
+            label_replace(
+              increase(container_oom_events_total{container_label_com_docker_compose_project="local-ai-lab",container_label_com_docker_compose_service!=""}[5m]),
+              "service", "$1", "container_label_com_docker_compose_service", "(.+)"
+            )
+          )
+
+  - name: local-ai-lab-alerts
+    rules:
+      - alert: LocalAILabMetricsUnavailable
+        expr: up{job="cadvisor"} == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Local AI Lab container metrics are unavailable
+          description: Prometheus has not scraped cAdvisor successfully for one minute.
+      - alert: LocalAILabContainerOOM
+        expr: local_ai_lab:container_oom_events:increase5m > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: Local AI Lab container had an out-of-memory event
+          description: Service {{ $labels.service }} reported an OOM event during the last five minutes.

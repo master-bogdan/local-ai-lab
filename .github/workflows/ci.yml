@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          cache: true
+          cache-dependency-path: go.sum
+      - name: Format
+        run: test -z "$(gofmt -l cmd internal)"
+      - name: Vet
+        run: go vet ./...
+      - name: Staticcheck
+        run: go tool staticcheck ./...
+      - name: Test
+        run: go test -race ./...
+      - name: Vulnerability scan
+        run: go tool govulncheck ./...
+      - name: Build Linux
+        run: go build -trimpath -o /tmp/localai ./cmd/localai
+      - name: Build macOS Apple Silicon
+        run: GOOS=darwin GOARCH=arm64 go build -trimpath -o /tmp/localai-darwin-arm64 ./cmd/localai
+      - name: Build Windows rejection path
+        run: GOOS=windows GOARCH=amd64 go build -trimpath -o /tmp/localai.exe ./cmd/localai
+
+  compose:
+    runs-on: ubuntu-latest
+    env:
+      LOCAL_AI_DATA_DIR: /tmp/local-ai-lab
+      SEARXNG_SECRET: ci-secret
+      GRAFANA_PASSWORD: ci-password
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate NVIDIA overlay
+        run: docker compose -f deploy/compose.yaml -f deploy/compose.nvidia.yaml config --quiet
+      - name: Validate ROCm overlay
+        run: docker compose -f deploy/compose.yaml -f deploy/compose.rocm.yaml config --quiet
+      - name: Validate Vulkan overlay
+        run: docker compose -f deploy/compose.yaml -f deploy/compose.vulkan.yaml config --quiet
+      - name: Validate macOS overlay
+        run: docker compose -f deploy/compose.yaml -f deploy/compose.macos.yaml config --quiet
+      - name: Validate Grafana dashboard JSON
+        run: jq empty deploy/monitoring/grafana/dashboards/local-ai-lab.json
+      - name: Validate Prometheus configuration and rules
+        run: >-
+          docker run --rm
+          -v "$PWD/deploy/monitoring/prometheus:/etc/prometheus:ro"
+          --entrypoint /bin/promtool
+          prom/prometheus:v3.13.1@sha256:3c42b892cf723fa54d2f262c37a0e1f80aa8c8ddb1da7b9b0df9455a35a7f893
+          check config /etc/prometheus/prometheus.yml

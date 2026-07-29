@@ -1,0 +1,141 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}}, "overrides": []},
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "targets": [{"editorMode": "code", "expr": "count(local_ai_lab:container_last_seen)", "instant": true, "legendFormat": "Services", "range": false, "refId": "A"}],
+      "title": "Monitored Services",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [{"options": {"0": {"color": "red", "text": "DOWN"}, "1": {"color": "green", "text": "UP"}}, "type": "value"}],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "red", "value": null}, {"color": "green", "value": 1}]}
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "id": 2,
+      "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "targets": [{"editorMode": "code", "expr": "min(up{job=~\"cadvisor|prometheus\"})", "instant": true, "legendFormat": "Scrapes", "range": false, "refId": "A"}],
+      "title": "Metrics Health",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "decimals": 2, "unit": "cores"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "id": 3,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "targets": [{"editorMode": "code", "expr": "sum(local_ai_lab:container_cpu_cores:rate1m)", "instant": true, "legendFormat": "CPU", "range": false, "refId": "A"}],
+      "title": "Container CPU",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "unit": "bytes"}, "overrides": []},
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "id": 4,
+      "options": {"colorMode": "value", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "targets": [{"editorMode": "code", "expr": "sum(local_ai_lab:container_memory_working_set_bytes)", "instant": true, "legendFormat": "Memory", "range": false, "refId": "A"}],
+      "title": "Container Memory",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "cores"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+      "id": 5,
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [{"editorMode": "code", "expr": "local_ai_lab:container_cpu_cores:rate1m", "legendFormat": "{{service}}", "range": true, "refId": "A"}],
+      "title": "CPU by Service",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "bytes"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+      "id": 6,
+      "options": {"legend": {"calcs": ["lastNotNull", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [{"editorMode": "code", "expr": "local_ai_lab:container_memory_working_set_bytes", "legendFormat": "{{service}}", "range": true, "refId": "A"}],
+      "title": "Memory by Service",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "Bps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+      "id": 7,
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {"editorMode": "code", "expr": "local_ai_lab:container_network_receive_bytes:rate1m", "legendFormat": "{{service}} receive", "range": true, "refId": "A"},
+        {"editorMode": "code", "expr": "local_ai_lab:container_network_transmit_bytes:rate1m", "legendFormat": "{{service}} transmit", "range": true, "refId": "B"}
+      ],
+      "title": "Network by Service",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "palette-classic"}, "unit": "Bps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+      "id": 8,
+      "options": {"legend": {"calcs": ["lastNotNull"], "displayMode": "table", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "multi", "sort": "desc"}},
+      "targets": [
+        {"editorMode": "code", "expr": "local_ai_lab:container_fs_reads_bytes:rate1m", "legendFormat": "{{service}} read", "range": true, "refId": "A"},
+        {"editorMode": "code", "expr": "local_ai_lab:container_fs_writes_bytes:rate1m", "legendFormat": "{{service}} write", "range": true, "refId": "B"}
+      ],
+      "title": "Disk I/O by Service",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "gridPos": {"h": 5, "w": 8, "x": 0, "y": 20},
+      "id": 9,
+      "options": {"colorMode": "background", "graphMode": "area", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "targets": [{"editorMode": "code", "expr": "sum(local_ai_lab:container_oom_events:increase5m) or vector(0)", "instant": true, "legendFormat": "OOM events", "range": false, "refId": "A"}],
+      "title": "OOM Events (5m)",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "thresholds"}, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 1}]}}, "overrides": []},
+      "gridPos": {"h": 5, "w": 8, "x": 8, "y": 20},
+      "id": 10,
+      "options": {"colorMode": "background", "graphMode": "none", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}},
+      "targets": [{"editorMode": "code", "expr": "count(ALERTS{alertstate=\"firing\"}) or vector(0)", "instant": true, "legendFormat": "Firing alerts", "range": false, "refId": "A"}],
+      "title": "Firing Alerts",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"color": {"mode": "continuous-GrYlRd"}, "max": 60, "min": 0, "unit": "s"}, "overrides": []},
+      "gridPos": {"h": 5, "w": 8, "x": 16, "y": 20},
+      "id": 11,
+      "options": {"displayMode": "gradient", "orientation": "horizontal", "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "showUnfilled": true},
+      "targets": [{"editorMode": "code", "expr": "time() - local_ai_lab:container_last_seen", "instant": true, "legendFormat": "{{service}}", "range": false, "refId": "A"}],
+      "title": "Seconds Since Last Seen",
+      "type": "bargauge"
+    }
+  ],
+  "refresh": "15s",
+  "schemaVersion": 42,
+  "tags": ["local-ai-lab", "provisioned"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Local AI Lab Overview",
+  "uid": "local-ai-lab",
+  "version": 1
+}

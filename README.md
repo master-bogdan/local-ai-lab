@@ -1,94 +1,106 @@
-# local-ai-lab
+# Local AI Lab
 
-Local AI stack for development and prototyping: Ollama + Open WebUI, ComfyUI, SearXNG (web search for RAG), Bolt.diy, plus monitoring via Prometheus/Grafana/cAdvisor.
+Local, zero-API-cost AI workstation by [bogdanlabs.dev](https://bogdanlabs.dev) and [masterbogdan](https://github.com/masterbogdan).
 
-## Services
+Local AI Lab provides:
 
-- `ollama` — LLM runtime / model host
-- `openwebui-core` — chat UI + RAG
-- `searxng` — private meta-search (used by Open WebUI web search)
-- `bolt-diy` — Bolt.diy app (optional UI)
-- `comfyui` — image generation UI
-- `prometheus`, `grafana`, `cadvisor` — monitoring/metrics
+- coding agents through Ollama and OpenCode
+- browser chat through Open WebUI
+- public web search through SearXNG
+- local workspace search through Qdrant
+- image generation through ComfyUI
+- ready-to-use monitoring through Prometheus and Grafana
 
-## Prerequisites
+Services bind to `127.0.0.1`, and the Local AI Lab CLI stays in this repository. Required Docker or GPU runtime packages may be installed system-wide only after the control center shows the exact commands and receives confirmation.
 
-- Docker + Compose plugin (`docker compose`)
-- Optional GPU:
-  - Linux (NVIDIA): install `nvidia-container-toolkit`
-  - CPU-only: remove `gpus: all` from `docker-compose.yaml` for `ollama`/`comfyui`
+## Requirements
 
-## Quick start
+- Go 1.26.5 or newer
+- GNU Make
+- internet access during installation and for public web search
+- a supported GPU and its working host driver
 
-Recommended (Makefile):
+Supported hosts:
+
+| Host | Minimum | Runtime |
+|---|---|---|
+| Fedora, Ubuntu, or Arch with NVIDIA or AMD GPU | 6 GiB VRAM, 16 GiB RAM | CUDA or ROCm |
+| Linux with supported AMD or Intel GPU | 6 GiB VRAM, 16 GiB RAM | experimental Vulkan |
+| Apple Silicon macOS | 24 GiB unified memory | Metal |
+
+CPU-only systems, Intel Macs, Windows, and WSL are unsupported. Linux dependency setup can install Docker and GPU container tools, but it does not install GPU drivers. macOS requires Homebrew and Docker Desktop.
+
+## Use
+
+From the repository, run:
 
 ```bash
-make install
 make start
 ```
 
-Scripts:
+This opens the control center. On first run it checks the hardware, asks what the lab is for, recommends a small model set, and lets you customize it. Installation downloads only the confirmed services and models, then returns with all services stopped.
 
-```bash
-./scripts/install.sh
-./scripts/start.sh
-```
+Use arrow keys or `j`/`k` to move, `Enter` to select, `Space` to toggle choices, and `Esc` to go back. Every system change, download, configuration update, and deletion is reviewed before it runs.
 
-Stop and clean up (preserves Ollama models by default):
+After installation, the menu provides:
 
-```bash
-make clear
-```
+- **Start or switch workload**: coding, images, infrastructure, or both
+- **Service status and URLs**: health, local addresses, and Grafana credentials
+- **Follow service logs**: live container output
+- **Manage models**: list, download, or remove Ollama models
+- **Optional setup**: OpenCode, monitoring, and the separate ComfyUI control flow
+- **Index a workspace**: add a Git repository to local knowledge search
+- **Stop services**: stop runtimes without deleting data
+- **Delete data**: remove selected data or the complete installation
 
-## Default URLs
+Services can keep running after the control center exits. The exit screen asks whether to leave them running or stop them. Run `make start` again whenever you need the menu.
 
-Defaults come from `config/*.env.example` and are merged into `.env` by `./scripts/install.sh`.
+## Models
 
-- Open WebUI: `http://localhost:3000`
-- Ollama API: `http://localhost:11434`
-- ComfyUI: `http://localhost:8188`
-- SearXNG: `http://localhost:8088`
-- Bolt.diy: `http://localhost:5173`
-- Grafana: `http://localhost:3002` (default `admin` / `admin`)
-- Prometheus: `http://localhost:9090`
-- cAdvisor: `http://localhost:8080`
+The installer recommends models for the detected hardware and selected workload. The picker explains every choice and labels it:
 
-## Configuration
+- `FAST`: model and configured context stay GPU-resident
+- `TIGHT`: fits with limited runtime headroom
+- `HYBRID`: uses deliberate CPU and system-memory offload
+- `UNSUPPORTED`: visible for comparison but cannot be selected
 
-- Source of truth: `config/*.env` (copy from `config/*.env.example` on first install).
-- Install step merges `config/*.env` into root `.env` in a deterministic order (alphabetical by filename, later files override earlier ones).
-- Changing `config/*.env` requires re-running `./scripts/install.sh` to regenerate `.env`.
+| Model | Use |
+|---|---|
+| `qwen3.5:4b` | lightweight work on smaller GPUs |
+| `qwen3.5:9b` | fast coding and tool calls |
+| `gpt-oss:20b` | multi-step agentic reasoning |
+| `devstral-small-2:24b` | repository-scale coding agent |
+| `qwen3.6:27b` / `qwen3.6:35b` | quality coding and review |
+| `gemma3:12b` | screenshots, vision, and general chat |
+| `qwen3-coder-next` | very large repository-scale coding |
+| `gpt-oss:120b` | high-end local reasoning |
+| `qwen3-embedding:0.6b` / `qwen3-embedding:4b` | workspace retrieval |
 
-Common settings:
+Context is sized from available memory instead of blindly using a model's advertised maximum. Presets stay small; the complete catalog is available for custom setups.
 
-- Ports: `OLLAMA_PORT`, `OPENWEBUI_CORE_PORT`, `COMFYUI_PORT`, `SEARXNG_PORT`, `BOLTDIY_PORT`, `GRAFANA_PORT`, `PROMETHEUS_PORT`, `CADVISOR_PORT`
-- Open WebUI ↔ Ollama: `OLLAMA_BASE_URL=http://ollama:11434`
-- Open WebUI web search via SearXNG: `ENABLE_RAG_WEB_SEARCH=true` and `SEARXNG_QUERY_URL=http://searxng:8080/search?q=<query>`
+## Images
 
-Generated runtime artifacts:
+Choose **Optional setup** -> **Image generation** to configure, start, stop, or update ComfyUI separately from the coding runtime. The same menu previews the newest generated PNG or JPEG directly in the terminal.
 
-- `.env` — generated from `config/*.env`
-- `.installed` — sentinel used by `./scripts/start.sh`
-- `monitoring/prometheus/prometheus.yml` and `monitoring/grafana/provisioning/datasources/datasource.yml` — created if missing (never overwritten)
-- `data/searxng/settings.yml` — generated on install (includes JSON search when `SEARXNG_ENABLE_JSON=true`)
+Image preview supports Kitty graphics, iTerm2 images, Sixel, ANSI half-blocks, and ASCII fallback. Detection covers Kitty, Ghostty, WezTerm, iTerm2, tmux, SSH sessions, and ordinary native terminals. Override detection with `LOCAL_AI_IMAGE_PROTOCOL=kitty|iterm2|sixel|ansi|off`; set `LOCAL_AI_REDUCE_MOTION=1` to disable optional UI motion.
 
-## Models (Ollama)
+## OpenCode
 
-- Pull default set: `make models-install` (or edit `DEFAULT_MODELS` in `./scripts/models-install.sh`)
-- Pull specific models: `make models-install MODELS='qwen2.5-coder:14b llama3.1:8b'`
-- Remove models: `make models-remove MODELS='qwen2.5-coder:14b'`
-- Wipe everything including models: `make clear-with-models` (or `./scripts/clear.sh --wipe-models`)
+Install OpenCode manually from its [official guide](https://opencode.ai/docs), then choose **Optional setup** -> **OpenCode**. The control center previews and backs up the OpenCode configuration before connecting it to local Ollama models, the configured context, web search, and workspace search.
 
-## Ops
+Start a coding workload, change to any project directory, and run `opencode` normally.
 
-- Logs: `docker compose logs -f`
-- Restart a service: `docker compose restart openwebui-core`
+## Local Data
 
-## Notes
+Default data locations:
 
-- `cadvisor` runs `privileged: true` to read host/container metrics; don’t expose it publicly.
-- If you want a stable SearXNG secret across re-installs, set `SEARXNG_SECRET_KEY` in `config/searxng.env` (otherwise install will generate one into `.env`).
+- Linux: `${XDG_DATA_HOME:-~/.local/share}/local-ai-lab`
+- macOS: `~/Library/Application Support/local-ai-lab`
+
+Models, indexes, cached search results, generated images, service data, and monitoring history stay there until removed through **Delete data**.
+
+All ports are loopback-only, but localhost is not authentication: other processes running as your user can access local service APIs. Public web searches and downloads still use the internet. Review repositories before indexing them if tracked files may contain secrets.
 
 ## License
 
-MIT — see `LICENSE`.
+Repository source and configuration are MIT licensed. See [LICENSE](LICENSE). Downloaded models, applications, containers, and dependencies keep their upstream licenses.

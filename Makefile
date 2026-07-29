@@ -1,45 +1,28 @@
-.DEFAULT_GOAL := help
+.DEFAULT_GOAL := start
 
-.PHONY: help install start clear models-install models-remove
+CLI := .local/bin/localai
+GO_FILES := $(shell find cmd internal -name '*.go' -type f)
+RETIRED_TARGETS := install stop status logs doctor models comfy monitoring opencode index delete build help
 
-help:
-	@echo ""
-	@echo "local-ai-lab"
-	@echo ""
-	@echo "Targets:"
-	@echo "  make install         - Combine envs + dirs + monitoring + pull models"
-	@echo "  make start           - Install if needed, then docker compose up (foreground)"
-	@echo "  make clear           - Remove everything installed (down -v + generated files)"
-	@echo "  make models-install  - Pull models only (optional args via MODELS=...)"
-	@echo "  make models-remove   - Remove models only (required args via MODELS=...)"
-	@echo ""
-	@echo "Examples:"
-	@echo "  make start"
-	@echo "  make models-install MODELS='deepseek-r1:14b qwen2.5-coder:14b'"
-	@echo "  make models-remove  MODELS='deepseek-r1:8b'"
-	@echo ""
+.PHONY: start test check $(RETIRED_TARGETS)
 
-install:
-	./scripts/install.sh
+$(CLI): $(GO_FILES) go.mod go.sum
+	@mkdir -p .local/bin
+	@go build -trimpath -o $(CLI) ./cmd/localai
 
-start:
-	./scripts/start.sh
+start: $(CLI)
+	@$(CLI) start
 
-clear:
-	./scripts/clear.sh
+$(RETIRED_TARGETS):
+	@printf '%s\n' 'Direct commands were removed. Run make start and use the interactive menu.'
+	@exit 2
 
-clear-with-models:
-	./scripts/clear.sh --wipe-models
+test:
+	@go test ./...
 
-
-# Optional helpers (only if you keep models scripts):
-models-install:
-	./scripts/models-install.sh $(MODELS)
-
-models-remove:
-	@if [ -z "$(MODELS)" ]; then \
-		echo "ERROR: MODELS is required. Example:"; \
-		echo "  make models-remove MODELS='deepseek-r1:8b'"; \
-		exit 1; \
-	fi
-	./scripts/models-remove.sh $(MODELS)
+check:
+	@test -z "$$(gofmt -l cmd internal)" || (gofmt -l cmd internal; exit 1)
+	@go vet ./...
+	@go tool staticcheck ./...
+	@go test -race ./...
+	@go tool govulncheck ./...

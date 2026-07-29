@@ -1,0 +1,20 @@
+FROM pytorch/pytorch:2.13.0-cuda13.0-cudnn9-runtime@sha256:db80a41f8428644cebcb3d75b0b62df334ab6c0e75785951eb25f48bfbd42407
+
+ARG COMFYUI_VERSION=v0.29.0
+ARG COMFYUI_COMMIT=a8c44f9b2a0678ac4082e3529a3f43db7472acfe
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /workspace
+RUN git init ComfyUI \
+	&& git -C ComfyUI remote add origin https://github.com/Comfy-Org/ComfyUI.git \
+	&& git -C ComfyUI fetch --depth 1 origin "${COMFYUI_COMMIT}" \
+	&& git -C ComfyUI checkout --detach FETCH_HEAD \
+	&& test "$(git -C ComfyUI rev-parse HEAD)" = "${COMFYUI_COMMIT}" \
+	&& python -m pip install --no-cache-dir -r ComfyUI/requirements.txt
+
+WORKDIR /workspace/ComfyUI
+EXPOSE 8188
+CMD ["python", "main.py", "--listen", "0.0.0.0", "--port", "8188"]
