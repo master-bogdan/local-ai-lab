@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/x/ansi"
+
 	"github.com/master-bogdan/local-ai-lab/internal/hardware"
 	"github.com/master-bogdan/local-ai-lab/internal/models"
 	"github.com/master-bogdan/local-ai-lab/internal/ui"
@@ -178,8 +180,9 @@ func TestModelPickerCannotSelectUnsupportedModel(t *testing.T) {
 	if got := strings.Join(selected, ","); got != "daily" {
 		t.Fatalf("selected = %q, want daily", got)
 	}
+	rendered := ansi.Strip(output.String())
 	for _, wanted := range []string{"UNSUPPORTED", "FAST", "32K context", "6.0 GiB selected"} {
-		if !strings.Contains(output.String(), wanted) {
+		if !strings.Contains(rendered, wanted) {
 			t.Fatalf("model picker is missing %q:\n%s", wanted, output.String())
 		}
 	}
