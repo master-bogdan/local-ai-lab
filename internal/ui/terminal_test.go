@@ -195,7 +195,7 @@ func TestWelcomeShowsPurposeAndOwnership(t *testing.T) {
 		"LOCAL AI LAB",
 		"Private AI workstation",
 		"bogdanlabs.dev",
-		"github.com/masterbogdan",
+		"github.com/master-bogdan",
 	} {
 		if !strings.Contains(output.String(), wanted) {
 			t.Fatalf("welcome is missing %q:\n%s", wanted, output.String())

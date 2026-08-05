@@ -23,23 +23,29 @@ func (d hardwareDetector) Detect(context.Context, string) (hardware.Report, erro
 }
 
 type installPrompt struct {
-	dataDir  string
-	workload models.Workload
-	services config.Services
-	models   []string
-	catalog  []models.Model
-	preview  app.InstallPreview
+	dataDir        string
+	workload       models.Workload
+	services       config.Services
+	models         []string
+	catalog        []models.Model
+	preview        app.InstallPreview
+	payloadPrompts int
 }
 
 func (p installPrompt) DataDirectory(string) (string, error) { return p.dataDir, nil }
-func (p installPrompt) Workload(hardware.Report) (models.Workload, error) {
+func (p *installPrompt) Workload(hardware.Report) (models.Workload, error) {
+	p.payloadPrompts++
 	if p.workload == "" {
 		return models.Coding, nil
 	}
 	return p.workload, nil
 }
-func (p installPrompt) Services(models.Workload) (config.Services, error) { return p.services, nil }
+func (p *installPrompt) Services(models.Workload) (config.Services, error) {
+	p.payloadPrompts++
+	return p.services, nil
+}
 func (p *installPrompt) Models(catalog []models.Model) ([]string, error) {
+	p.payloadPrompts++
 	p.catalog = catalog
 	return p.models, nil
 }
@@ -95,6 +101,39 @@ func TestInstallerAddsEmbeddingModelWhenKnowledgeIsSelected(t *testing.T) {
 	}
 	if !executor.plan.PullsModel("qwen3-embedding:0.6b") {
 		t.Fatalf("knowledge service missing embedding model: %#v", executor.plan.Steps)
+	}
+}
+
+func TestInstallerReusesPreviousSetupAfterHardwareValidation(t *testing.T) {
+	applicationRoot := t.TempDir()
+	prompt := &installPrompt{dataDir: safeDataDir(t)}
+	installer := app.NewInstaller(
+		config.NewStore(applicationRoot),
+		hardwareDetector{report: hardware.Report{
+			OS: hardware.Linux, MemoryBytes: 64 * hardware.GiB, DiskBytes: 100 * hardware.GiB,
+			GPU: hardware.GPU{Vendor: hardware.NVIDIA, Runtime: hardware.CUDA, VRAMBytes: 16 * hardware.GiB, Usable: true},
+		}},
+		prompt,
+		&recordingExecutor{},
+	)
+	preset := &app.InstallPreset{
+		Workload: models.Coding,
+		Models:   []string{"qwen3.5:9b", "qwen3-embedding:0.6b"},
+		Services: config.Services{Search: true, Knowledge: true},
+	}
+
+	if err := installer.Run(context.Background(), app.InstallOptions{Preset: preset}); err != nil {
+		t.Fatal(err)
+	}
+	if prompt.payloadPrompts != 0 {
+		t.Fatalf("reused setup opened %d payload prompts", prompt.payloadPrompts)
+	}
+	installation, err := config.NewStore(applicationRoot).Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if installation.ModelProfile != "coding" || len(installation.Models) != 2 {
+		t.Fatalf("reused setup = %#v", installation)
 	}
 }
 
@@ -234,7 +273,7 @@ func TestInstallerRefusesUnsupportedHardwareWithoutChanges(t *testing.T) {
 		t.Fatalf("executor called %d times", executor.calls)
 	}
 	if _, err := os.Stat(filepath.Join(repoDir, config.PointerFile)); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("repository pointer was written: %v", err)
+		t.Fatalf("installation pointer was written: %v", err)
 	}
 	if _, err := os.Stat(dataDir); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("data directory was written: %v", err)

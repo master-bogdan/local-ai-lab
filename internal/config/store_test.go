@@ -11,8 +11,8 @@ import (
 	"github.com/master-bogdan/local-ai-lab/internal/config"
 )
 
-func TestStoreSavesAndLoadsInstallationThroughRepoPointer(t *testing.T) {
-	repoDir := t.TempDir()
+func TestStoreSavesAndLoadsInstallationThroughGlobalPointer(t *testing.T) {
+	applicationRoot := t.TempDir()
 	installation := config.Installation{
 		DataDir:  filepath.Join(t.TempDir(), "local-ai-lab"),
 		Platform: "linux",
@@ -21,7 +21,7 @@ func TestStoreSavesAndLoadsInstallationThroughRepoPointer(t *testing.T) {
 		Services: config.Services{Search: true, Knowledge: true, WebUI: true},
 	}
 
-	store := config.NewStore(repoDir)
+	store := config.NewStore(applicationRoot)
 	if err := store.Save(installation); err != nil {
 		t.Fatalf("save installation: %v", err)
 	}
@@ -46,7 +46,7 @@ func TestStoreSavesAndLoadsInstallationThroughRepoPointer(t *testing.T) {
 }
 
 func TestStoreSaveDoesNotFollowPredictableTemporarySymlink(t *testing.T) {
-	repoDir := t.TempDir()
+	applicationRoot := t.TempDir()
 	dataDir := filepath.Join(t.TempDir(), "local-ai-lab")
 	if err := os.MkdirAll(dataDir, 0o700); err != nil {
 		t.Fatal(err)
@@ -59,7 +59,7 @@ func TestStoreSaveDoesNotFollowPredictableTemporarySymlink(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := config.NewStore(repoDir).Save(config.Installation{DataDir: dataDir}); err != nil {
+	if err := config.NewStore(applicationRoot).Save(config.Installation{DataDir: dataDir}); err != nil {
 		t.Fatalf("save installation: %v", err)
 	}
 	got, err := os.ReadFile(victim)
@@ -72,9 +72,9 @@ func TestStoreSaveDoesNotFollowPredictableTemporarySymlink(t *testing.T) {
 }
 
 func TestStoreLoadRejectsConfigDataDirectoryMismatch(t *testing.T) {
-	repoDir := t.TempDir()
+	applicationRoot := t.TempDir()
 	dataDir := filepath.Join(t.TempDir(), "local-ai-lab")
-	store := config.NewStore(repoDir)
+	store := config.NewStore(applicationRoot)
 	if err := store.Save(config.Installation{DataDir: dataDir}); err != nil {
 		t.Fatal(err)
 	}
@@ -87,6 +87,6 @@ func TestStoreLoadRejectsConfigDataDirectoryMismatch(t *testing.T) {
 	}
 
 	if _, err := store.Load(); err == nil {
-		t.Fatal("loaded config whose data directory differs from repository pointer")
+		t.Fatal("loaded config whose data directory differs from installation pointer")
 	}
 }

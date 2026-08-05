@@ -18,7 +18,7 @@ func TestMergePreservesUserConfigAndReplacesOnlyOwnedEntries(t *testing.T) {
   "mcp": {"other": {"type": "local", "command": ["other"]}}
 }`)
 
-	merged, err := opencode.Merge(existing, "/repo/.local/bin/localai", config.Installation{
+	merged, err := opencode.Merge(existing, "/repo/.local/bin/local-ai-lab", config.Installation{
 		Models: []string{"qwen3.5:9b"}, ModelProfile: "coding", ContextLength: 32768,
 	})
 	if err != nil {
@@ -45,7 +45,7 @@ func TestMergePreservesUserConfigAndReplacesOnlyOwnedEntries(t *testing.T) {
 	}
 	localAI := mcp["local-ai"].(map[string]any)
 	command := localAI["command"].([]any)
-	if command[0] != "/repo/.local/bin/localai" || command[1] != "mcp" {
+	if command[0] != "/repo/.local/bin/local-ai-lab" || command[1] != "mcp" {
 		t.Fatalf("unexpected local AI MCP command: %#v", command)
 	}
 }
@@ -57,7 +57,7 @@ func TestMergeAcceptsJSONCWithoutDroppingSettings(t *testing.T) {
   "autoupdate": true,
 }`)
 
-	merged, err := opencode.Merge(existing, "/repo/.local/bin/localai", config.Installation{
+	merged, err := opencode.Merge(existing, "/repo/.local/bin/local-ai-lab", config.Installation{
 		Models: []string{"qwen3.5:9b"}, ModelProfile: "coding", ContextLength: 32768,
 	})
 	if err != nil {
@@ -74,7 +74,7 @@ func TestMergeAcceptsJSONCWithoutDroppingSettings(t *testing.T) {
 }
 
 func TestMergeUsesWorkloadPrimaryAndConfiguredContext(t *testing.T) {
-	merged, err := opencode.Merge(nil, "/repo/.local/bin/localai", config.Installation{
+	merged, err := opencode.Merge(nil, "/repo/.local/bin/local-ai-lab", config.Installation{
 		Models: []string{
 			"qwen3.5:9b",
 			"gpt-oss:20b",

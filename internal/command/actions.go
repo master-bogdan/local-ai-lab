@@ -390,7 +390,7 @@ func (r Runner) configureOpenCode() error {
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
-	merged, err := opencode.Merge(existing, repoBinaryPath(r.repoDir), installation)
+	merged, err := opencode.Merge(existing, r.integrationBinaryPath(), installation)
 	if err != nil {
 		return err
 	}
@@ -471,7 +471,7 @@ func (r Runner) delete(ctx context.Context) error {
 
 func (r Runner) deletionPlan(mode string, installation config.Installation) (app.DeletionPlan, error) {
 	if mode == "full" {
-		return app.FullDeletionPlan(r.repoDir, installation), nil
+		return app.FullDeletionPlan(r.store.PointerPath(), installation), nil
 	}
 	selected, err := r.terminal.MultiSelect("Select data to delete", []ui.Option{
 		{Label: "Models", Description: "Ollama and ComfyUI model files", Value: string(app.DeleteModels)},

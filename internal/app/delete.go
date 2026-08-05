@@ -21,11 +21,11 @@ const (
 )
 
 type DeletionPlan struct {
-	Paths        []string
-	Confirmation string
-	DataRoot     string
-	RepoPointer  string
-	Categories   []DeletionCategory
+	Paths         []string
+	Confirmation  string
+	DataRoot      string
+	ConfigPointer string
+	Categories    []DeletionCategory
 }
 
 type DeletionTarget struct {
@@ -33,13 +33,12 @@ type DeletionTarget struct {
 	SizeBytes int64
 }
 
-func FullDeletionPlan(repoDir string, installation config.Installation) DeletionPlan {
-	pointerPath := filepath.Join(repoDir, config.PointerFile)
+func FullDeletionPlan(pointerPath string, installation config.Installation) DeletionPlan {
 	return DeletionPlan{
-		Paths:        []string{installation.DataDir, pointerPath},
-		Confirmation: "DELETE",
-		DataRoot:     installation.DataDir,
-		RepoPointer:  pointerPath,
+		Paths:         []string{installation.DataDir, pointerPath},
+		Confirmation:  "DELETE",
+		DataRoot:      installation.DataDir,
+		ConfigPointer: pointerPath,
 	}
 }
 
@@ -89,11 +88,11 @@ func (p DeletionPlan) Execute(confirmation string) error {
 		return errors.New("deletion confirmation did not match")
 	}
 	for _, path := range p.Paths {
-		if path != p.RepoPointer && !isSafeDeletionTarget(p.DataRoot, path) {
+		if path != p.ConfigPointer && !isSafeDeletionTarget(p.DataRoot, path) {
 			return fmt.Errorf("refusing unsafe deletion path %q", path)
 		}
-		if path == p.RepoPointer && filepath.Base(path) != config.PointerFile {
-			return fmt.Errorf("refusing unsafe repository pointer %q", path)
+		if path == p.ConfigPointer && filepath.Base(path) != config.PointerFile {
+			return fmt.Errorf("refusing unsafe installation pointer %q", path)
 		}
 		if err := os.RemoveAll(path); err != nil {
 			return fmt.Errorf("delete %s: %w", path, err)

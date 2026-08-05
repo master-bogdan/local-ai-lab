@@ -6,14 +6,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/master-bogdan/local-ai-lab/internal/fileutil"
 )
 
 const (
-	PointerFile = ".localai.json"
+	PointerFile = "installation.json"
 	ConfigFile  = "config.json"
 )
 
@@ -58,11 +57,15 @@ type pointer struct {
 }
 
 type Store struct {
-	repoDir string
+	rootDir string
 }
 
-func NewStore(repoDir string) Store {
-	return Store{repoDir: repoDir}
+func NewStore(rootDir string) Store {
+	return Store{rootDir: rootDir}
+}
+
+func (s Store) PointerPath() string {
+	return filepath.Join(s.rootDir, PointerFile)
 }
 
 func (s Store) Save(installation Installation) error {
@@ -75,41 +78,34 @@ func (s Store) Save(installation Installation) error {
 	if err := writeJSON(filepath.Join(installation.DataDir, ConfigFile), installation); err != nil {
 		return fmt.Errorf("write installation config: %w", err)
 	}
-	if err := writeJSON(filepath.Join(s.repoDir, PointerFile), pointer{DataDir: installation.DataDir}); err != nil {
-		return fmt.Errorf("write repository pointer: %w", err)
+	if err := os.MkdirAll(s.rootDir, 0o700); err != nil {
+		return fmt.Errorf("create application data directory: %w", err)
+	}
+	if err := writeJSON(s.PointerPath(), pointer{DataDir: installation.DataDir}); err != nil {
+		return fmt.Errorf("write installation pointer: %w", err)
 	}
 	return nil
 }
 
 func (s Store) Load() (Installation, error) {
 	var location pointer
-	if err := readJSON(filepath.Join(s.repoDir, PointerFile), &location); err != nil {
+	if err := readJSON(s.PointerPath(), &location); err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return Installation{}, ErrNotInstalled
 		}
-		return Installation{}, fmt.Errorf("read repository pointer: %w", err)
+		return Installation{}, fmt.Errorf("read installation pointer: %w", err)
 	}
 	if err := validateDataDir(location.DataDir); err != nil {
-		return Installation{}, fmt.Errorf("validate repository pointer: %w", err)
+		return Installation{}, fmt.Errorf("validate installation pointer: %w", err)
 	}
 	var installation Installation
 	if err := readJSON(filepath.Join(location.DataDir, ConfigFile), &installation); err != nil {
 		return Installation{}, fmt.Errorf("read installation config: %w", err)
 	}
 	if filepath.Clean(installation.DataDir) != filepath.Clean(location.DataDir) {
-		return Installation{}, errors.New("installation config data directory does not match repository pointer")
+		return Installation{}, errors.New("installation config data directory does not match installation pointer")
 	}
 	return installation, nil
-}
-
-func DefaultDataDir(homeDir string) string {
-	if runtime.GOOS == "darwin" {
-		return filepath.Join(homeDir, "Library", "Application Support", "local-ai-lab")
-	}
-	if dataHome := os.Getenv("XDG_DATA_HOME"); dataHome != "" {
-		return filepath.Join(dataHome, "local-ai-lab")
-	}
-	return filepath.Join(homeDir, ".local", "share", "local-ai-lab")
 }
 
 func writeJSON(path string, value any) error {

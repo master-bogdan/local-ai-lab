@@ -2,120 +2,118 @@
 
 <h1>Local AI Lab</h1>
 
-<p><strong>Private AI workstation. Local models, coding agents, search, images, and monitoring.</strong></p>
+<p><strong>Terminal-first control center for a private local AI workstation.</strong></p>
 
-<p>Zero paid API costs. Built by <a href="https://github.com/masterbogdan">Bogdan Shchavinskyi</a> at <a href="https://bogdanlabs.dev">bogdanlabs.dev</a>.</p>
+<p>Models, coding agents, web search, workspace knowledge, images, and monitoring. No paid API required.</p>
+
+<p>By <a href="https://github.com/master-bogdan">Bogdan Shchavinskyi</a> at <a href="https://bogdanlabs.dev">bogdanlabs.dev</a>.</p>
 
 <picture>
   <source media="(prefers-reduced-motion: reduce)" srcset="assets/tui-models.png">
-  <img src="assets/tui-demo.gif" width="1200" alt="Local AI Lab terminal interface selecting a workload and hardware-recommended local models">
+  <img src="assets/tui-demo.gif" width="1200" alt="Local AI Lab terminal interface recommending local models for detected hardware">
 </picture>
 
 </div>
 
+## Install
+
+Download and run the native installer for your host. It is a self-contained Go binary with no runtime dependency.
+
+Linux amd64:
+
 ```bash
-make start
+curl -fsSL https://github.com/master-bogdan/local-ai-lab/releases/latest/download/local-ai-lab-installer_linux_amd64 -o /tmp/local-ai-lab-installer
+chmod 700 /tmp/local-ai-lab-installer
+/tmp/local-ai-lab-installer
 ```
 
-Local AI Lab provides:
+Linux ARM64:
 
-- coding agents through Ollama and OpenCode
-- browser chat through Open WebUI
-- public web search through SearXNG
-- local workspace search through Qdrant
-- image generation through ComfyUI
-- ready-to-use monitoring through Prometheus and Grafana
+```bash
+curl -fsSL https://github.com/master-bogdan/local-ai-lab/releases/latest/download/local-ai-lab-installer_linux_arm64 -o /tmp/local-ai-lab-installer
+chmod 700 /tmp/local-ai-lab-installer
+/tmp/local-ai-lab-installer
+```
 
-Services bind to `127.0.0.1`, and the Local AI Lab CLI stays in this repository. Required Docker or GPU runtime packages may be installed system-wide only after the control center shows the exact commands and receives confirmation.
+Apple Silicon macOS:
+
+```bash
+curl -fsSL https://github.com/master-bogdan/local-ai-lab/releases/latest/download/local-ai-lab-installer_darwin_arm64 -o /tmp/local-ai-lab-installer
+chmod 700 /tmp/local-ai-lab-installer
+/tmp/local-ai-lab-installer
+```
+
+The installer shows the exact version, platform, application path, and command path before writing. It verifies SHA-256 checksums and also verifies GitHub release integrity and build provenance when `gh` is available. It installs only the control center; no model or service starts automatically.
+
+Launch it from any directory:
+
+```bash
+local-ai-lab
+```
 
 ## Requirements
 
-- Go 1.26.5 or newer
-- GNU Make
-- internet access during installation and for public web search
-- a supported GPU and its working host driver
-
-Supported hosts:
-
-| Host | Minimum | Runtime |
+| Host | Minimum | Status |
 |---|---|---|
-| Fedora, Ubuntu, or Arch with NVIDIA or AMD GPU | 6 GiB VRAM, 16 GiB RAM | CUDA or ROCm |
-| Linux with supported AMD or Intel GPU | 6 GiB VRAM, 16 GiB RAM | experimental Vulkan |
-| Apple Silicon macOS | 24 GiB unified memory | Metal |
+| Linux amd64 with NVIDIA or AMD GPU | 6 GiB VRAM, 16 GiB RAM | supported |
+| Linux amd64 with Vulkan-capable AMD or Intel GPU | 6 GiB VRAM, 16 GiB RAM | experimental |
+| Linux ARM64 with a supported GPU runtime | service-dependent | experimental |
+| Apple Silicon macOS | 24 GiB unified memory | supported |
 
-CPU-only systems, Intel Macs, Windows, and WSL are unsupported. Linux dependency setup can install Docker and GPU container tools, but it does not install GPU drivers. macOS requires Homebrew and Docker Desktop.
+Fedora, Ubuntu, and Arch Linux are supported. CPU-only systems, Intel Macs, Windows, and WSL are rejected. GPU drivers must already work on the host. Linux setup can install Docker and supported container runtime packages after showing exact commands and receiving confirmation. macOS requires Homebrew and Docker Desktop.
 
 ## Use
 
-From the repository, run:
+First run checks hardware and disk, recommends models for the detected memory, and lets you confirm every model, service, path, and system change. Installation ends with all services stopped. Start the workload you need from the control center afterward.
 
-```bash
-make start
-```
+Main actions:
 
-This opens the control center. On first run it checks the hardware, asks what the lab is for, recommends a small model set, and lets you customize it. Installation downloads only the confirmed services and models, then returns with all services stopped.
+- start or switch coding, image, infrastructure, or combined workloads
+- inspect service health and localhost URLs
+- follow logs and manage Ollama models
+- configure ComfyUI, monitoring, and OpenCode
+- index a Git workspace for local agent search
+- update or roll back the Local AI Lab application
+- stop services or uninstall with a reviewed deletion plan
 
-Use arrow keys or `j`/`k` to move, `Enter` to select, `Space` to toggle choices, and `Esc` to go back. Every system change, download, configuration update, and deletion is reviewed before it runs.
+Services can remain running after the TUI exits. Exit flow asks whether to keep them running or stop them. Reopen `local-ai-lab` later to inspect or stop them.
 
-After installation, the menu provides:
+## Included Tools
 
-- **Start or switch workload**: coding, images, infrastructure, or both
-- **Service status and URLs**: health, local addresses, and Grafana credentials
-- **Follow service logs**: live container output
-- **Manage models**: list, download, or remove Ollama models
-- **Optional setup**: OpenCode, monitoring, and the separate ComfyUI control flow
-- **Index a workspace**: add a Git repository to local knowledge search
-- **Stop services**: stop runtimes without deleting data
-- **Delete data**: remove selected data or the complete installation
-
-Services can keep running after the control center exits. The exit screen asks whether to leave them running or stop them. Run `make start` again whenever you need the menu.
-
-## Models
-
-The installer recommends models for the detected hardware and selected workload. The picker explains every choice and labels it:
-
-- `FAST`: model and configured context stay GPU-resident
-- `TIGHT`: fits with limited runtime headroom
-- `HYBRID`: uses deliberate CPU and system-memory offload
-- `UNSUPPORTED`: visible for comparison but cannot be selected
-
-| Model | Use |
+| Tool | Purpose |
 |---|---|
-| `qwen3.5:4b` | lightweight work on smaller GPUs |
-| `qwen3.5:9b` | fast coding and tool calls |
-| `gpt-oss:20b` | multi-step agentic reasoning |
-| `devstral-small-2:24b` | repository-scale coding agent |
-| `qwen3.6:27b` / `qwen3.6:35b` | quality coding and review |
-| `gemma3:12b` | screenshots, vision, and general chat |
-| `qwen3-coder-next` | very large repository-scale coding |
-| `gpt-oss:120b` | high-end local reasoning |
-| `qwen3-embedding:0.6b` / `qwen3-embedding:4b` | workspace retrieval |
+| Ollama | local model runtime |
+| OpenCode | terminal coding agent; installed separately, configured by the TUI |
+| Open WebUI | browser chat and local RAG |
+| SearXNG | local web-search gateway |
+| Qdrant | workspace vector search |
+| ComfyUI | separate image-generation flow |
+| Prometheus, Grafana, cAdvisor | predefined metrics, alerts, and dashboard |
 
-Context is sized from available memory instead of blindly using a model's advertised maximum. Presets stay small; the complete catalog is available for custom setups.
-
-## Images
-
-Choose **Optional setup** -> **Image generation** to configure, start, stop, or update ComfyUI separately from the coding runtime. The same menu previews the newest generated PNG or JPEG directly in the terminal.
-
-Image preview supports Kitty graphics, iTerm2 images, Sixel, ANSI half-blocks, and ASCII fallback. Detection covers Kitty, Ghostty, WezTerm, iTerm2, tmux, SSH sessions, and ordinary native terminals. Override detection with `LOCAL_AI_IMAGE_PROTOCOL=kitty|iterm2|sixel|ansi|off`; set `LOCAL_AI_REDUCE_MOTION=1` to disable optional UI motion.
-
-## OpenCode
-
-Install OpenCode manually from its [official guide](https://opencode.ai/docs), then choose **Optional setup** -> **OpenCode**. The control center previews and backs up the OpenCode configuration before connecting it to local Ollama models, the configured context, web search, and workspace search.
-
-Start a coding workload, change to any project directory, and run `opencode` normally.
+Model picker labels each model `FAST`, `TIGHT`, `HYBRID`, or `UNSUPPORTED`, explains why, and sizes context for available memory. Presets remain small; custom setup exposes the full curated catalog. A preserved reinstall receipt can restore model and service choices after a full uninstall, but never stores secrets, prompts, search history, logs, or indexed workspace paths.
 
 ## Local Data
 
-Default data locations:
+Default root:
 
 - Linux: `${XDG_DATA_HOME:-~/.local/share}/local-ai-lab`
 - macOS: `~/Library/Application Support/local-ai-lab`
 
-Models, indexes, cached search results, generated images, service data, and monitoring history stay there until removed through **Delete data**.
+Application versions, configuration, models, indexes, cached searches, generated images, service data, and monitoring history remain local. Services bind to `127.0.0.1`; other processes running as your user can still access localhost APIs. Web searches and downloads use the internet.
 
-All ports are loopback-only, but localhost is not authentication: other processes running as your user can access local service APIs. Public web searches and downloads still use the internet. Review repositories before indexing them if tracked files may contain secrets.
+Choose **Application** -> **Uninstall** for application-only removal, full removal with reinstall choices preserved, or absolute removal. Docker, GPU drivers, Homebrew, native apps, and shared upstream container images are never removed.
+
+## Development
+
+From a source checkout:
+
+```bash
+make start
+make test
+```
+
+`make start` builds a repository-local development binary and uses the same lab data as an installed release. It does not install a global command.
 
 ## License
 
-Repository source and configuration are MIT licensed. See [LICENSE](LICENSE). Downloaded models, applications, containers, and dependencies keep their upstream licenses.
+Local AI Lab source and configuration are MIT licensed. See [LICENSE](LICENSE). Downloaded models, containers, applications, and dependencies retain their upstream licenses.

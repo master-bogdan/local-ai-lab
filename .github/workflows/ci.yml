@@ -28,12 +28,20 @@ jobs:
         run: go test -race ./...
       - name: Vulnerability scan
         run: go tool govulncheck ./...
-      - name: Build Linux
-        run: go build -trimpath -o /tmp/localai ./cmd/localai
+      - name: Build Linux amd64
+        run: |
+          GOOS=linux GOARCH=amd64 go build -trimpath -o /tmp/local-ai-lab-linux-amd64 ./cmd/local-ai-lab
+          GOOS=linux GOARCH=amd64 go build -trimpath -o /tmp/local-ai-lab-installer-linux-amd64 ./cmd/local-ai-lab-installer
+      - name: Build Linux ARM64
+        run: |
+          GOOS=linux GOARCH=arm64 go build -trimpath -o /tmp/local-ai-lab-linux-arm64 ./cmd/local-ai-lab
+          GOOS=linux GOARCH=arm64 go build -trimpath -o /tmp/local-ai-lab-installer-linux-arm64 ./cmd/local-ai-lab-installer
       - name: Build macOS Apple Silicon
-        run: GOOS=darwin GOARCH=arm64 go build -trimpath -o /tmp/localai-darwin-arm64 ./cmd/localai
+        run: |
+          GOOS=darwin GOARCH=arm64 go build -trimpath -o /tmp/local-ai-lab-darwin-arm64 ./cmd/local-ai-lab
+          GOOS=darwin GOARCH=arm64 go build -trimpath -o /tmp/local-ai-lab-installer-darwin-arm64 ./cmd/local-ai-lab-installer
       - name: Build Windows rejection path
-        run: GOOS=windows GOARCH=amd64 go build -trimpath -o /tmp/localai.exe ./cmd/localai
+        run: GOOS=windows GOARCH=amd64 go build -trimpath -o /tmp/local-ai-lab.exe ./cmd/local-ai-lab
 
   compose:
     runs-on: ubuntu-latest

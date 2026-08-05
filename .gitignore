@@ -7,7 +7,7 @@ Thumbs.db
 *.swo
 
 .local/
-.localai.json
+dist/
 coverage.out
 *.out
 

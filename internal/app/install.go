@@ -38,6 +38,13 @@ type InstallPrompt interface {
 type InstallOptions struct {
 	DefaultDataDir    string
 	AllowExperimental bool
+	Preset            *InstallPreset
+}
+
+type InstallPreset struct {
+	Workload models.Workload
+	Models   []string
+	Services config.Services
 }
 
 type InstallPreview struct {
@@ -76,7 +83,7 @@ func (i Installer) Run(ctx context.Context, options InstallOptions) error {
 	if !assessment.Supported {
 		return fmt.Errorf("%w: %s", ErrUnsupportedHardware, assessment.Reason)
 	}
-	workload, services, selectedModels, err := i.choosePayload(report)
+	workload, services, selectedModels, err := i.choosePayload(report, options.Preset)
 	if err != nil {
 		return err
 	}
@@ -124,13 +131,6 @@ func PrepareDataLayout(dataDir string) error {
 }
 
 func (i Installer) chooseDataDirectory(defaultPath string) (string, error) {
-	if defaultPath == "" {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return "", fmt.Errorf("find home directory: %w", err)
-		}
-		defaultPath = config.DefaultDataDir(homeDir)
-	}
 	dataDir, err := i.prompt.DataDirectory(defaultPath)
 	if err != nil {
 		return "", fmt.Errorf("choose data directory: %w", err)
@@ -144,7 +144,13 @@ func (i Installer) chooseDataDirectory(defaultPath string) (string, error) {
 	return dataDir, nil
 }
 
-func (i Installer) choosePayload(report hardware.Report) (models.Workload, config.Services, []models.Model, error) {
+func (i Installer) choosePayload(
+	report hardware.Report,
+	preset *InstallPreset,
+) (models.Workload, config.Services, []models.Model, error) {
+	if preset != nil {
+		return selectPayload(report, preset.Workload, preset.Services, preset.Models)
+	}
 	workload, err := i.prompt.Workload(report)
 	if err != nil {
 		return "", config.Services{}, nil, fmt.Errorf("choose workload: %w", err)
@@ -158,6 +164,25 @@ func (i Installer) choosePayload(report hardware.Report) (models.Workload, confi
 	if err != nil {
 		return "", config.Services{}, nil, fmt.Errorf("choose services: %w", err)
 	}
+	return finalizePayload(workload, catalog, services, names)
+}
+
+func selectPayload(
+	report hardware.Report,
+	workload models.Workload,
+	services config.Services,
+	names []string,
+) (models.Workload, config.Services, []models.Model, error) {
+	catalog := models.Recommend(report, workload)
+	return finalizePayload(workload, catalog, services, append([]string(nil), names...))
+}
+
+func finalizePayload(
+	workload models.Workload,
+	catalog []models.Model,
+	services config.Services,
+	names []string,
+) (models.Workload, config.Services, []models.Model, error) {
 	if services.WebUI {
 		services.Search = true
 		services.Knowledge = true

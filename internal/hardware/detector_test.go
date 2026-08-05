@@ -3,6 +3,7 @@ package hardware_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/master-bogdan/local-ai-lab/internal/hardware"
@@ -10,7 +11,8 @@ import (
 
 type probeSystem struct{}
 
-func (probeSystem) OS() string { return "linux" }
+func (probeSystem) OS() string   { return "linux" }
+func (probeSystem) Arch() string { return "arm64" }
 
 func (probeSystem) ReadFile(path string) ([]byte, error) {
 	switch path {
@@ -50,5 +52,38 @@ func TestDetectorReportsUsableLinuxNVIDIAGPU(t *testing.T) {
 	}
 	if report.GPU.VRAMBytes != 16376*1024*1024 {
 		t.Fatalf("unexpected VRAM: %d", report.GPU.VRAMBytes)
+	}
+	if report.Architecture != "arm64" {
+		t.Fatalf("architecture = %q", report.Architecture)
+	}
+}
+
+type intelMacSystem struct{ probeSystem }
+
+func (intelMacSystem) OS() string   { return "darwin" }
+func (intelMacSystem) Arch() string { return "amd64" }
+
+func (intelMacSystem) Run(_ context.Context, name string, _ ...string) ([]byte, error) {
+	if name == "sysctl" {
+		return []byte("34359738368\n"), nil
+	}
+	return nil, errors.New("command unavailable")
+}
+
+func TestDetectorRejectsIntelMacInsteadOfReportingAppleSilicon(t *testing.T) {
+	report, err := hardware.NewDetector(intelMacSystem{}).Detect(
+		context.Background(),
+		t.TempDir(),
+	)
+	if err != nil {
+		t.Fatalf("detect Intel Mac: %v", err)
+	}
+
+	assessment := hardware.Assess(report, false)
+	if assessment.Supported || !strings.Contains(assessment.Reason, "Intel Macs") {
+		t.Fatalf("assessment = %#v", assessment)
+	}
+	if report.GPU.Name == "Apple Silicon" || report.GPU.Usable {
+		t.Fatalf("Intel Mac reported as usable Apple Silicon: %#v", report.GPU)
 	}
 }

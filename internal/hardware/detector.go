@@ -12,6 +12,7 @@ import (
 
 type System interface {
 	OS() string
+	Arch() string
 	ReadFile(string) ([]byte, error)
 	Glob(string) (map[string][]byte, error)
 	Run(context.Context, string, ...string) ([]byte, error)
@@ -27,7 +28,7 @@ func NewDetector(system System) Detector {
 }
 
 func (d Detector) Detect(ctx context.Context, dataPath string) (Report, error) {
-	report := Report{OS: OS(d.system.OS())}
+	report := Report{OS: OS(d.system.OS()), Architecture: d.system.Arch()}
 	var err error
 	switch report.OS {
 	case Linux:
@@ -139,6 +140,10 @@ func (d Detector) detectMac(ctx context.Context, report Report) (Report, error) 
 		return report, fmt.Errorf("parse macOS unified memory: %w", err)
 	}
 	report.Distro = "macos"
+	if report.Architecture != "arm64" {
+		report.GPU = GPU{Name: "Intel Mac"}
+		return report, nil
+	}
 	report.GPU = GPU{Vendor: Apple, Name: "Apple Silicon", Runtime: Metal, Usable: true}
 	return report, nil
 }

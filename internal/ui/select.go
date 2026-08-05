@@ -306,7 +306,7 @@ func (t *Terminal) OnboardingMenu(options []Option, defaultValue string) (string
 			{label: "Access", value: "localhost only"},
 			{label: "Cost", value: "$0 local inference"},
 			{label: "Platforms", value: "Linux · Apple Silicon"},
-			{label: "Entry point", value: "make start"},
+			{label: "Entry point", value: "local-ai-lab"},
 		},
 	}, options, defaultValue)
 }
@@ -314,6 +314,7 @@ func (t *Terminal) OnboardingMenu(options []Option, defaultValue string) (string
 func (t *Terminal) InstallationMenu(summary InstallationSummary, options []Option, defaultValue string) (string, error) {
 	details := []menuDetail{
 		{label: "System", value: summary.Platform},
+		{label: "Application", value: summary.Application},
 		{label: "Accelerator", value: summary.GPU},
 		{label: "Runtime", value: strings.ToUpper(summary.Runtime)},
 		{label: "Memory", value: fmt.Sprintf("%s VRAM · %s RAM", formatBytes(summary.VRAMBytes), formatBytes(summary.RAMBytes))},
@@ -331,6 +332,7 @@ func (t *Terminal) InstallationMenu(summary InstallationSummary, options []Optio
 		details:  details,
 		compactDetails: []menuDetail{
 			{label: "System", value: summary.Platform + " · " + strings.ToUpper(summary.Runtime) + " · " + summary.Workload},
+			{label: "Application", value: summary.Application},
 			{label: "GPU", value: summary.GPU + " · " + formatBytes(summary.VRAMBytes)},
 			{label: "Lab", value: fmt.Sprintf("%d models · %s", summary.Models, summary.Services)},
 			{label: "Inference", value: fmt.Sprintf("%s · %s context", summary.ModelProfile, formatContext(summary.ContextLength))},

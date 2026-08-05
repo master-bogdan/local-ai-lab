@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := start
 
-CLI := .local/bin/localai
+CLI := .local/bin/local-ai-lab
 GO_FILES := $(shell find cmd internal -name '*.go' -type f)
 RETIRED_TARGETS := install stop status logs doctor models comfy monitoring opencode index delete build help
 
@@ -8,10 +8,12 @@ RETIRED_TARGETS := install stop status logs doctor models comfy monitoring openc
 
 $(CLI): $(GO_FILES) go.mod go.sum
 	@mkdir -p .local/bin
-	@go build -trimpath -o $(CLI) ./cmd/localai
+	@go build -trimpath \
+		-ldflags "-X github.com/master-bogdan/local-ai-lab/internal/buildinfo.Commit=$$(git rev-parse --short=12 HEAD)" \
+		-o $(CLI) ./cmd/local-ai-lab
 
 start: $(CLI)
-	@$(CLI) start
+	@LOCAL_AI_LAB_APP_ROOT="$(CURDIR)" $(CLI) start
 
 $(RETIRED_TARGETS):
 	@printf '%s\n' 'Direct commands were removed. Run make start and use the interactive menu.'

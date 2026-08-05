@@ -5,8 +5,10 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/master-bogdan/local-ai-lab/internal/config"
+	"github.com/master-bogdan/local-ai-lab/internal/distribution"
 	"github.com/master-bogdan/local-ai-lab/internal/hardware"
 	"github.com/master-bogdan/local-ai-lab/internal/ui"
 )
@@ -51,7 +53,10 @@ func TestEmbeddingModelUsesSavedChoiceAndSafeFallback(t *testing.T) {
 }
 
 func TestInstalledMenuOwnsAllUserActions(t *testing.T) {
-	wanted := []string{"start", "status", "logs", "models", "optional", "index", "stop", "delete", "doctor", "exit"}
+	wanted := []string{
+		"start", "status", "logs", "models", "optional", "index",
+		"stop", "application", "delete", "doctor", "exit",
+	}
 	options := installedMenuOptions()
 	if len(options) != len(wanted) {
 		t.Fatalf("installed menu has %d options, want %d: %#v", len(options), len(wanted), options)
@@ -64,7 +69,7 @@ func TestInstalledMenuOwnsAllUserActions(t *testing.T) {
 }
 
 func TestOnboardingMenuOffersSafePreInstallActions(t *testing.T) {
-	wanted := []string{"install", "experimental", "doctor", "requirements", "exit"}
+	wanted := []string{"install", "experimental", "doctor", "requirements", "application", "exit"}
 	options := onboardingMenuOptions()
 	if len(options) != len(wanted) {
 		t.Fatalf("onboarding menu has %d options, want %d: %#v", len(options), len(wanted), options)
@@ -73,6 +78,78 @@ func TestOnboardingMenuOffersSafePreInstallActions(t *testing.T) {
 		if options[index].Value != value {
 			t.Fatalf("option %d = %q, want %q", index, options[index].Value, value)
 		}
+	}
+}
+
+func TestApplicationMenuOwnsReleaseAndUninstallLifecycle(t *testing.T) {
+	wanted := []string{"update", "rollback", "uninstall", "back"}
+	options := applicationMenuOptions()
+	if len(options) != len(wanted) {
+		t.Fatalf("application menu has %d options, want %d: %#v", len(options), len(wanted), options)
+	}
+	for index, value := range wanted {
+		if options[index].Value != value {
+			t.Fatalf("option %d = %q, want %q", index, options[index].Value, value)
+		}
+	}
+}
+
+func TestUninstallMenuOffersPreservingAndAbsoluteRemoval(t *testing.T) {
+	wanted := []string{"application", "full", "absolute", "cancel"}
+	options := uninstallMenuOptions()
+	if len(options) != len(wanted) {
+		t.Fatalf("uninstall menu has %d options, want %d: %#v", len(options), len(wanted), options)
+	}
+	for index, value := range wanted {
+		if options[index].Value != value {
+			t.Fatalf("option %d = %q, want %q", index, options[index].Value, value)
+		}
+	}
+}
+
+func TestInterruptedInstallMenuOffersRecoveryWithoutSilentDeletion(t *testing.T) {
+	wanted := []string{"resume", "remove", "exit"}
+	options := interruptedInstallOptions()
+	if len(options) != len(wanted) {
+		t.Fatalf("interrupted install menu has %d options, want %d", len(options), len(wanted))
+	}
+	for index, value := range wanted {
+		if options[index].Value != value {
+			t.Fatalf("option %d = %q, want %q", index, options[index].Value, value)
+		}
+	}
+}
+
+func TestReinstallMenuOffersReuseOrFreshSetup(t *testing.T) {
+	wanted := []string{"reuse", "custom"}
+	options := reinstallOptions(distribution.Receipt{})
+	if len(options) != len(wanted) {
+		t.Fatalf("reinstall menu has %d options, want %d", len(options), len(wanted))
+	}
+	for index, value := range wanted {
+		if options[index].Value != value {
+			t.Fatalf("option %d = %q, want %q", index, options[index].Value, value)
+		}
+	}
+}
+
+func TestReceiptPreservesPreviousChoicesWithoutCurrentLab(t *testing.T) {
+	installedAt := time.Date(2026, time.July, 1, 12, 0, 0, 0, time.UTC)
+	existing := distribution.Receipt{
+		Schema: 1, LastVersion: "v0.1.0", InstalledAt: installedAt,
+		DataDir: "/data/local-ai-lab", Workload: "coding",
+		Models: []string{"qwen3.5:9b"}, Services: []string{"search"},
+	}
+	now := installedAt.Add(24 * time.Hour)
+
+	got := buildReceipt(existing, nil, "v0.2.0", true, now)
+
+	if got.LastVersion != "v0.2.0" || got.DataDir != existing.DataDir ||
+		len(got.Models) != 1 || got.Models[0] != "qwen3.5:9b" {
+		t.Fatalf("preserved receipt = %#v", got)
+	}
+	if got.UninstalledAt == nil || !got.UninstalledAt.Equal(now) {
+		t.Fatalf("uninstall timestamp = %#v, want %s", got.UninstalledAt, now)
 	}
 }
 
@@ -116,10 +193,12 @@ func TestStatusProbesConfiguredEnginesOutsideCurrentWorkload(t *testing.T) {
 
 func TestDirectLifecycleCommandsAreRejected(t *testing.T) {
 	terminal := ui.NewTerminal(bytes.NewBuffer(nil), &bytes.Buffer{})
-	runner := NewRunner(t.TempDir(), terminal)
+	appRoot := t.TempDir()
+	layout := distribution.UserLayout(t.TempDir(), "linux", nil)
+	runner := NewRunner(appRoot, "/tmp/local-ai-lab", layout, "dev", "test", terminal)
 
 	err := runner.Run(context.Background(), []string{"models", "list"})
-	if err == nil || !strings.Contains(err.Error(), "make start") {
-		t.Fatalf("direct command error = %v, want make start guidance", err)
+	if err == nil || !strings.Contains(err.Error(), "local-ai-lab") {
+		t.Fatalf("direct command error = %v, want local-ai-lab guidance", err)
 	}
 }

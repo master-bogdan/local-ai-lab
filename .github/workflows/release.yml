@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  release:
+    if: github.repository == 'master-bogdan/local-ai-lab'
+    runs-on: ubuntu-latest
+    env:
+      GRAFANA_PASSWORD: release-check
+      LOCAL_AI_DATA_DIR: /tmp/local-ai-lab
+      SEARXNG_SECRET: release-check
+    permissions:
+      artifact-metadata: write
+      attestations: write
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.26.5"
+          cache: true
+          cache-dependency-path: go.sum
+      - name: Verify signed annotated tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag_sha=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${GITHUB_REF_NAME}" --jq '.object.sha')
+          tag_type=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${GITHUB_REF_NAME}" --jq '.object.type')
+          test "$tag_type" = "tag"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${tag_sha}" --jq '.verification.verified')" = "true"
+      - name: Quality and security gate
+        run: make check
+      - name: Validate deployment assets
+        run: |
+          jq empty deploy/monitoring/grafana/dashboards/local-ai-lab.json
+          docker compose -f deploy/compose.yaml -f deploy/compose.nvidia.yaml config --quiet
+          docker compose -f deploy/compose.yaml -f deploy/compose.rocm.yaml config --quiet
+          docker compose -f deploy/compose.yaml -f deploy/compose.vulkan.yaml config --quiet
+          docker compose -f deploy/compose.yaml -f deploy/compose.macos.yaml config --quiet
+          docker run --rm \
+            -v "$PWD/deploy/monitoring/prometheus:/etc/prometheus:ro" \
+            --entrypoint /bin/promtool \
+            prom/prometheus:v3.13.1@sha256:3c42b892cf723fa54d2f262c37a0e1f80aa8c8ddb1da7b9b0df9455a35a7f893 \
+            check config /etc/prometheus/prometheus.yml
+      - name: Package
+        run: >-
+          go run ./cmd/local-ai-lab-release
+          -version "$GITHUB_REF_NAME"
+          -commit "$GITHUB_SHA"
+          -output dist
+      - name: Attest release assets
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/local-ai-lab-installer_*
+            dist/checksums.txt
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME"
+          dist/*
+          --draft
+          --generate-notes
+          --title "Local AI Lab $GITHUB_REF_NAME"
+          --verify-tag

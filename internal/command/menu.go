@@ -5,10 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime"
 	"strings"
+	"time"
 
 	"github.com/master-bogdan/local-ai-lab/internal/app"
 	"github.com/master-bogdan/local-ai-lab/internal/config"
+	"github.com/master-bogdan/local-ai-lab/internal/distribution"
 	"github.com/master-bogdan/local-ai-lab/internal/hardware"
 	labruntime "github.com/master-bogdan/local-ai-lab/internal/runtime"
 	"github.com/master-bogdan/local-ai-lab/internal/ui"
@@ -84,6 +87,9 @@ func (r Runner) onboardingMenu(ctx context.Context) (bool, error) {
 		return false, r.doctor(ctx)
 	case "requirements":
 		return false, r.showRequirements()
+	case "application":
+		err := r.application(ctx)
+		return errors.Is(err, errApplicationExit), ignoreApplicationExit(err)
 	default:
 		return true, nil
 	}
@@ -128,6 +134,9 @@ func (r Runner) installedMenu(ctx context.Context, installation config.Installat
 		return false, r.indexWorkspace(ctx, workspace)
 	case "stop":
 		return false, r.stop(ctx)
+	case "application":
+		err := r.application(ctx)
+		return errors.Is(err, errApplicationExit), ignoreApplicationExit(err)
 	case "delete":
 		return false, r.delete(ctx)
 	case "doctor":
@@ -146,6 +155,7 @@ func onboardingMenuOptions() []ui.Option {
 		{Label: "Experimental GPU setup", Description: "Vulkan or Intel XPU; compatibility varies", Value: "experimental"},
 		{Label: "Check hardware", Description: "Inspect GPU, memory, disk, and required tools", Value: "doctor"},
 		{Label: "View requirements", Description: "Supported platforms and minimum hardware", Value: "requirements"},
+		{Label: "Application", Description: "Updates, rollback, and uninstall", Value: "application"},
 		{Label: "Exit", Description: "Leave without making changes", Value: "exit"},
 	}
 }
@@ -159,10 +169,31 @@ func installedMenuOptions() []ui.Option {
 		{Label: "Optional setup", Description: "ComfyUI, monitoring, and OpenCode", Value: "optional"},
 		{Label: "Index a workspace", Description: "Add repository knowledge for local agents", Value: "index"},
 		{Label: "Stop services", Description: "Stop runtimes and preserve all data", Value: "stop"},
+		{Label: "Application", Description: "Updates, rollback, and uninstall", Value: "application"},
 		{Label: "Delete data", Description: "Review partial or full deletion", Value: "delete"},
 		{Label: "Check hardware", Description: "Re-run compatibility diagnostics", Value: "doctor"},
 		{Label: "Exit", Description: "Leave control center", Value: "exit"},
 	}
+}
+
+func reinstallOptions(receipt distribution.Receipt) []ui.Option {
+	description := fmt.Sprintf(
+		"%d models · %s · %s",
+		len(receipt.Models),
+		receipt.Workload,
+		receipt.DataDir,
+	)
+	return []ui.Option{
+		{Label: "Reuse previous setup", Description: description, Value: "reuse"},
+		{Label: "Choose a new setup", Description: "Run hardware recommendations and all setup choices", Value: "custom"},
+	}
+}
+
+func ignoreApplicationExit(err error) error {
+	if errors.Is(err, errApplicationExit) {
+		return nil
+	}
+	return err
 }
 
 func (r Runner) installIntroduction() error {
@@ -207,7 +238,30 @@ func (r Runner) installationSummary(ctx context.Context, installation config.Ins
 	if err != nil {
 		return ui.InstallationSummary{}, fmt.Errorf("measure installation data: %w", err)
 	}
-	return summaryFromInstallation(installation, report, uint64(dataBytes)), nil
+	summary := summaryFromInstallation(installation, report, uint64(dataBytes))
+	summary.Application = r.applicationStatus(ctx)
+	return summary, nil
+}
+
+func (r Runner) applicationStatus(ctx context.Context) string {
+	if r.version == "dev" {
+		return "Development · " + r.commit
+	}
+	status := r.version
+	checkContext, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	release, available, err := (distribution.ReleaseClient{}).Latest(
+		checkContext,
+		r.layout.UpdateCache,
+		r.version,
+		runtime.GOOS,
+		runtime.GOARCH,
+		time.Now(),
+	)
+	if err == nil && available {
+		status += " · update " + release.Version
+	}
+	return status
 }
 
 func summaryFromInstallation(installation config.Installation, report hardware.Report, dataBytes uint64) ui.InstallationSummary {

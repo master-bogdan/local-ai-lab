@@ -47,6 +47,7 @@ type Option struct {
 type InstallationSummary struct {
 	Status, DataDir, Platform, GPU, Runtime   string
 	Services, Modules, Workload, ModelProfile string
+	Application                               string
 	DataBytes, FreeDiskBytes                  uint64
 	VRAMBytes, RAMBytes                       uint64
 	Models, ContextLength                     int
@@ -62,7 +63,7 @@ func (t *Terminal) Welcome() {
 	fmt.Fprintln(t.output, "Private AI workstation")
 	fmt.Fprintln(t.output, "Local models | Coding agents | Search | Images")
 	fmt.Fprintln(t.output)
-	fmt.Fprintln(t.output, "bogdanlabs.dev | github.com/masterbogdan")
+	fmt.Fprintln(t.output, "bogdanlabs.dev | github.com/master-bogdan")
 }
 
 func (t *Terminal) Heading(text string) {

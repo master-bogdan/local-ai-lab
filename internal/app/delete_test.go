@@ -1,7 +1,6 @@
 package app_test
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/master-bogdan/local-ai-lab/internal/app"
@@ -9,17 +8,17 @@ import (
 )
 
 func TestFullDeletionRequiresTypedConfirmationAndNeverTargetsOpenCode(t *testing.T) {
-	repoDir := "/repo"
+	pointerPath := "/state/local-ai-lab/installation.json"
 	installation := config.Installation{DataDir: "/data/local-ai-lab"}
 
-	plan := app.FullDeletionPlan(repoDir, installation)
+	plan := app.FullDeletionPlan(pointerPath, installation)
 
 	if plan.Confirmation != "DELETE" {
 		t.Fatalf("expected DELETE confirmation, got %q", plan.Confirmation)
 	}
 	want := map[string]bool{
-		"/data/local-ai-lab":                    true,
-		filepath.Join(repoDir, ".localai.json"): true,
+		"/data/local-ai-lab": true,
+		pointerPath:          true,
 	}
 	for _, path := range plan.Paths {
 		if !want[path] {

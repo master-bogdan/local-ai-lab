@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 
 	"github.com/master-bogdan/local-ai-lab/internal/app"
 	"github.com/master-bogdan/local-ai-lab/internal/config"
+	"github.com/master-bogdan/local-ai-lab/internal/distribution"
 	"github.com/master-bogdan/local-ai-lab/internal/hardware"
+	"github.com/master-bogdan/local-ai-lab/internal/models"
 	"github.com/master-bogdan/local-ai-lab/internal/opencode"
 	labruntime "github.com/master-bogdan/local-ai-lab/internal/runtime"
 	"github.com/master-bogdan/local-ai-lab/internal/ui"
@@ -27,22 +28,33 @@ No Windows. No WSL. No compatibility hacks. Windows users are unwelcome.
 Install Linux, use a Mac, or close this terminal with dignity.`
 
 type Runner struct {
-	repoDir  string
-	store    config.Store
-	terminal *ui.Terminal
-	executor planExecutor
+	appRoot    string
+	binaryPath string
+	layout     distribution.Layout
+	version    string
+	commit     string
+	store      config.Store
+	terminal   *ui.Terminal
+	executor   planExecutor
 }
 
 type windowsUnsupportedError struct{}
 
 func (windowsUnsupportedError) Error() string { return windowsMessage }
 
-func NewRunner(repoDir string, terminal *ui.Terminal) Runner {
+func NewRunner(
+	appRoot string,
+	binaryPath string,
+	layout distribution.Layout,
+	version string,
+	commit string,
+	terminal *ui.Terminal,
+) Runner {
 	return Runner{
-		repoDir:  repoDir,
-		store:    config.NewStore(repoDir),
-		terminal: terminal,
-		executor: interactivePlanExecutor{repoDir: repoDir, terminal: terminal},
+		appRoot: appRoot, binaryPath: binaryPath, layout: layout,
+		version: version, commit: commit,
+		store: config.NewStore(layout.Root), terminal: terminal,
+		executor: interactivePlanExecutor{appRoot: appRoot, terminal: terminal},
 	}
 }
 
@@ -59,7 +71,7 @@ func (r Runner) Run(ctx context.Context, args []string) error {
 		r.help()
 		return nil
 	default:
-		return fmt.Errorf("direct command %q is unavailable; run make start and use the control center", args[0])
+		return fmt.Errorf("direct command %q is unavailable; run local-ai-lab and use the control center", args[0])
 	}
 }
 
@@ -67,7 +79,11 @@ func (r Runner) installCore(ctx context.Context, experimental bool) error {
 	detector := hardware.NewDetector(hardware.HostSystem{})
 	preparedExecutor := dependencyExecutor{terminal: r.terminal, next: r.executor}
 	installer := app.NewInstaller(r.store, detector, r.terminal, preparedExecutor)
-	err := installer.Run(ctx, app.InstallOptions{AllowExperimental: experimental})
+	options, err := r.installOptions(experimental)
+	if err != nil {
+		return err
+	}
+	err = installer.Run(ctx, options)
 	if errors.Is(err, app.ErrUnsupportedHardware) && (hardware.HostSystem{}).OS() == "windows" {
 		return windowsUnsupportedError{}
 	}
@@ -77,6 +93,53 @@ func (r Runner) installCore(ctx context.Context, experimental bool) error {
 	r.terminal.Success("Local AI Lab installed. All services are stopped.")
 	r.terminal.Info("Returning to main menu. Choose Start when ready.")
 	return nil
+}
+
+func (r Runner) installOptions(experimental bool) (app.InstallOptions, error) {
+	options := app.InstallOptions{
+		AllowExperimental: experimental,
+		DefaultDataDir:    r.layout.DefaultDataDir,
+	}
+	receipt, err := distribution.ReadReceipt(r.layout.ReinstallReceipt)
+	if err != nil || receipt.DataDir == "" || len(receipt.Models) == 0 {
+		return options, nil
+	}
+	choice, err := r.terminal.Select(
+		"Previous setup found",
+		reinstallOptions(receipt),
+		"reuse",
+	)
+	if err != nil || choice != "reuse" {
+		return options, err
+	}
+	workload := models.Workload(receipt.Workload)
+	if workload == "" {
+		workload = models.Coding
+	}
+	options.DefaultDataDir = receipt.DataDir
+	options.Preset = &app.InstallPreset{
+		Workload: workload,
+		Models:   append([]string(nil), receipt.Models...),
+		Services: servicesFromReceipt(receipt.Services),
+	}
+	return options, nil
+}
+
+func servicesFromReceipt(selected []string) config.Services {
+	services := config.Services{}
+	for _, service := range selected {
+		switch service {
+		case "search":
+			services.Search = true
+		case "knowledge":
+			services.Knowledge = true
+		case "web-ui":
+			services.WebUI = true
+		case "monitoring":
+			services.Monitoring = true
+		}
+	}
+	return services
 }
 
 func (r Runner) start(ctx context.Context) error {
@@ -180,6 +243,9 @@ func (r Runner) dashboardAction(ctx context.Context, choice string) (bool, error
 		return false, r.optionalModules(ctx)
 	case "delete":
 		return false, r.delete(ctx)
+	case "application":
+		err := r.application(ctx)
+		return errors.Is(err, errApplicationExit), ignoreApplicationExit(err)
 	case "exit":
 		return r.exitDashboard(ctx)
 	default:
@@ -206,7 +272,7 @@ func (r Runner) exitDashboard(ctx context.Context) (bool, error) {
 	}
 	switch choice {
 	case "leave":
-		r.terminal.Warn("Services remain active. Run make start later and choose Stop services.")
+		r.terminal.Warn("Services remain active. Run local-ai-lab later and choose Stop services.")
 		return true, nil
 	case "stop":
 		return true, r.stop(ctx)
@@ -221,6 +287,7 @@ func dashboardOptions() []ui.Option {
 		{Label: "Switch workload", Description: "Change active model or image runtime", Value: "switch"},
 		{Label: "Installed models", Description: "Show Ollama model inventory", Value: "models"},
 		{Label: "Optional modules", Description: "ComfyUI, monitoring, and OpenCode", Value: "optional"},
+		{Label: "Application", Description: "Updates, rollback, and uninstall", Value: "application"},
 		{Label: "Delete data", Description: "Review partial or full deletion", Value: "delete"},
 		{Label: "Exit dashboard", Description: "Choose whether services keep running", Value: "exit"},
 	}
@@ -229,7 +296,7 @@ func dashboardOptions() []ui.Option {
 func (r Runner) showURLs(installation config.Installation, warnRunning bool) error {
 	var body strings.Builder
 	if warnRunning {
-		body.WriteString("Services run in background. Return through make start to stop them later.\n\n")
+		body.WriteString("Services run in background. Return through local-ai-lab to stop them later.\n\n")
 	}
 	body.WriteString("Ollama      http://127.0.0.1:11434\n")
 	if installation.Services.WebUI {
@@ -301,15 +368,12 @@ func contains(values []string, wanted string) bool {
 
 func (r Runner) help() {
 	r.terminal.Welcome()
-	r.terminal.Info("Run make start from the repository to open the interactive control center.")
+	r.terminal.Info("Run local-ai-lab to open the interactive control center.")
+	r.terminal.Info("Version %s (%s)", r.version, r.commit)
 }
 
 func (r Runner) doctor(ctx context.Context) error {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return err
-	}
-	dataDir := config.DefaultDataDir(homeDir)
+	dataDir := r.layout.DefaultDataDir
 	if installation, loadErr := r.store.Load(); loadErr == nil {
 		dataDir = installation.DataDir
 	}
@@ -337,7 +401,7 @@ func (r Runner) doctor(ctx context.Context) error {
 }
 
 func (r Runner) checkDependencies(ctx context.Context, report hardware.Report) error {
-	for _, command := range []string{"docker", "go", "make"} {
+	for _, command := range []string{"docker"} {
 		if _, err := exec.LookPath(command); err != nil {
 			return fmt.Errorf("missing required command %s", command)
 		}
@@ -369,6 +433,9 @@ func opencodePath() (string, error) {
 	return opencode.ConfigPath(homeDir), nil
 }
 
-func repoBinaryPath(repoDir string) string {
-	return filepath.Join(repoDir, ".local", "bin", "localai")
+func (r Runner) integrationBinaryPath() string {
+	if _, err := os.Lstat(r.layout.CommandPath); err == nil {
+		return r.layout.CommandPath
+	}
+	return r.binaryPath
 }

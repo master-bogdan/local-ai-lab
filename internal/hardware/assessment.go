@@ -41,6 +41,7 @@ type GPU struct {
 
 type Report struct {
 	OS            OS
+	Architecture  string
 	Distro        string
 	DistroVersion string
 	MemoryBytes   uint64
@@ -55,6 +56,9 @@ type Assessment struct {
 }
 
 func Assess(report Report, allowExperimental bool) Assessment {
+	if report.OS == MacOS && report.Architecture != "" && report.Architecture != "arm64" {
+		return Assessment{Reason: "Intel Macs are CPU-only and are not supported"}
+	}
 	if report.OS == MacOS && report.GPU.Vendor == Apple && report.GPU.Usable {
 		if report.MemoryBytes >= 24*GiB {
 			return Assessment{Supported: true, Tier: Standard}

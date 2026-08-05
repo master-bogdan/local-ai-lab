@@ -14,14 +14,14 @@ type planExecutor interface {
 }
 
 type interactivePlanExecutor struct {
-	repoDir  string
+	appRoot  string
 	terminal *ui.Terminal
 }
 
 func (e interactivePlanExecutor) Execute(ctx context.Context, plan labruntime.Plan) error {
 	title, success := planPresentation(plan)
 	return e.terminal.RunTask(ctx, title, success, func(taskContext context.Context, output io.Writer) error {
-		executor := labruntime.CommandExecutor{Dir: e.repoDir, Stdout: output, Stderr: output}
+		executor := labruntime.CommandExecutor{Dir: e.appRoot, Stdout: output, Stderr: output}
 		return executor.Execute(taskContext, plan)
 	})
 }

@@ -14,6 +14,10 @@ func (HostSystem) OS() string {
 	return runtime.GOOS
 }
 
+func (HostSystem) Arch() string {
+	return runtime.GOARCH
+}
+
 func (HostSystem) ReadFile(path string) ([]byte, error) {
 	return os.ReadFile(path)
 }
