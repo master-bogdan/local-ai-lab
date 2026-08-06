@@ -65,6 +65,32 @@ func TestModelPickerStartsOnFirstRecommendedModel(t *testing.T) {
 	}
 }
 
+func TestModelPickerRejectsUnsupportedModelAndRendersSelection(t *testing.T) {
+	model := newModelPickerModel([]models.Model{
+		{Name: "too-large", Fit: models.Unsupported, SizeBytes: 65 * hardware.GiB},
+		{Name: "daily", Fit: models.Fast, SizeBytes: 6 * hardware.GiB, Context: 32768},
+	})
+
+	updated, _ := model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeySpace}))
+	model = updated.(modelPickerModel)
+	updated, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeyDown}))
+	model = updated.(modelPickerModel)
+	updated, _ = model.Update(tea.KeyPressMsg(tea.Key{Code: tea.KeySpace}))
+	model = updated.(modelPickerModel)
+
+	assertRenderedViewFits(
+		t,
+		model.View().Content,
+		defaultPromptWidth,
+		defaultPromptHeight,
+		"[-] too-large",
+		"[x] daily",
+		"FAST",
+		"32K context",
+		"1 model · 6.0 GiB selected",
+	)
+}
+
 func TestInstalledDashboardFitsNarrowTerminal(t *testing.T) {
 	options := make([]Option, 10)
 	for i := range options {

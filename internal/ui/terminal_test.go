@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/x/ansi"
-
 	"github.com/master-bogdan/local-ai-lab/internal/hardware"
 	"github.com/master-bogdan/local-ai-lab/internal/models"
 	"github.com/master-bogdan/local-ai-lab/internal/ui"
@@ -166,8 +164,7 @@ func TestWorkloadPickerShowsHardwareAwareChoices(t *testing.T) {
 }
 
 func TestModelPickerCannotSelectUnsupportedModel(t *testing.T) {
-	output := &bytes.Buffer{}
-	terminal := ui.NewTerminal(bytes.NewBufferString(" \x1b[B \r"), output)
+	terminal := ui.NewTerminal(bytes.NewBufferString(" \x1b[B \r"), &bytes.Buffer{})
 	catalog := []models.Model{
 		{Name: "too-large", Purpose: "oversized model", Fit: models.Unsupported, Reason: "requires more VRAM", SizeBytes: 65 * hardware.GiB},
 		{Name: "daily", Purpose: "daily coding", Fit: models.Fast, Reason: "GPU-resident", SizeBytes: 6 * hardware.GiB, Context: 32768},
@@ -179,12 +176,6 @@ func TestModelPickerCannotSelectUnsupportedModel(t *testing.T) {
 	}
 	if got := strings.Join(selected, ","); got != "daily" {
 		t.Fatalf("selected = %q, want daily", got)
-	}
-	rendered := ansi.Strip(output.String())
-	for _, wanted := range []string{"UNSUPPORTED", "FAST", "32K context", "6.0 GiB selected"} {
-		if !strings.Contains(rendered, wanted) {
-			t.Fatalf("model picker is missing %q:\n%s", wanted, output.String())
-		}
 	}
 }
 
